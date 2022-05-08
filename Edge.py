@@ -49,7 +49,7 @@ class Edge():
     def get_vertices(self) -> 'list[Vertex]':
         return self.__vertices
 
-    def get_id(self) -> str:
+    def get_id(self) -> int:
         return self.__id
 
     def get_coord(self) -> 'list[list[float]]':
@@ -67,7 +67,7 @@ class Edge():
     def get_length(self) -> float:
         return self.__length
 
-    def set_id(self, id: str) -> None:
+    def set_id(self, id: int) -> None:
         self.__id = id
 
 

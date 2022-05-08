@@ -9,7 +9,6 @@ import os
 import pickle
 import sys
 import traceback
-
 # gdal对应的proj.db在这个文件夹下
 os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
 
@@ -51,7 +50,6 @@ def init_graph(nodePath, edgePath, graphName) -> str:
     '''开始构建图'''
     graph = Graph('TW_graph')
     '''读取边和点的shapefile文件'''
-    #edgeRec, edgeShap, edgeShapeRecs = readShaRec('T_ROAD/T_ROAD_webmerc.shp')
     '''构建节点类'''
     with shapefile.Reader(nodePath, encoding='utf-8') as nodeFile:
         # 读取属性
@@ -97,41 +95,21 @@ def init_graph(nodePath, edgePath, graphName) -> str:
             count += 1
     if graph.check_graph():
 
-        # serialize and save object
-        f = open(graphName, 'wb')
-        myStr = pickle.dumps(graph)
-        print(myStr)
-        print("?")
-        f.write(myStr)  
-        f.close()
-        return 'construct and save graph successfully'
+        
+        return [graph, 'construct graph successfully']
         
     else:
-        return 'construct or save graph unsuccessfully, please check your code!'
-
-
-'''重建图'''
-
-
-def myLoad(path) -> Graph:
-    graph = Graph()
-    with open(path, 'rb') as f:
-        graph=pickle.loads(f.read())
-    return graph
-    
+        return [None, 'construct graph unsuccessfully, please check your code!']
 
 
 if __name__ == '__main__':
     time_s = datetime.datetime.now()
-    msg = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
+    [graph, msg] = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
                      'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
     
     time_e = datetime.datetime.now()
     print(msg)
-    print('构建与保存花费时间:',(time_e-time_s).total_seconds(), '秒')
-    graph = myLoad('TWgraph')
-    time_e2 = datetime.datetime.now()
-    print('装载花费时间:',(time_e2-time_s).total_seconds(), '秒')
+    print('构建花费时间:',(time_e-time_s).total_seconds(), '秒')
     vertex_A = graph.find_vertex(1)
     vertex_B = graph.find_vertex(2871)
     vertex_C = graph.find_vertex(281)

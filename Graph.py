@@ -89,8 +89,8 @@ class Graph():
 
     '''通过节点号查找节点'''
 
-    def find_vertex(self, id: str = '') -> Vertex:
-        return self.__vertices[id]
+    def find_vertex(self, id: int) -> Vertex:
+        return self.__vertices[int(id)]
 
     '''通过(节点号1, 节点号2)查找边'''
 

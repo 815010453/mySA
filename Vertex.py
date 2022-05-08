@@ -55,7 +55,7 @@ class Vertex():
     def get_conVertex(self) -> 'list[Vertex]':
         return self.__conVertex
 
-    def get_id(self) -> str:
+    def get_id(self) -> int:
         return self.__id
 
     def get_coord(self) -> 'tuple[float]':
@@ -67,7 +67,7 @@ class Vertex():
     def get_edge(self) -> list:
         return self.__edges
 
-    def set_id(self, id: str) -> None:
+    def set_id(self, id: int) -> None:
         self.__id = id
 
     def set_coord(self, coord: tuple) -> None:
