@@ -6,6 +6,7 @@ import shapefile  # 使用pyshp
 from osgeo import osr
 import os
 import sys
+import pickle
 # gdal对应的proj.db在这个文件夹下
 os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
 
@@ -116,6 +117,5 @@ if __name__ == '__main__':
     print(vertex_A.get_id())
     print(vertex_B.get_id())
     print(vertex_C.get_id())
-
     print(graph.find_edge(vertex_A, vertex_B))
     print(graph.findpath_BFS(vertex_A, vertex_C))
