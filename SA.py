@@ -1,2 +1,2 @@
-from Graph import Graph
+from GeoGraph import GeoGraph
 

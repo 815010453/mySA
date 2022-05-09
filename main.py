@@ -1,12 +1,11 @@
-from Vertex import Vertex
-from Graph import Graph
+from GeoVertex import GeoVertex
+from GeoGraph import GeoGraph
 import datetime
 import numpy as np
 import shapefile  # 使用pyshp
 from osgeo import osr
 import os
 import sys
-import pickle
 # gdal对应的proj.db在这个文件夹下
 os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
 
@@ -38,7 +37,7 @@ def getMostTimesValue(valueStr):
     return max(hash, key=hash.get)
 
 
-'''图的构建与保存'''
+'''图的构建'''
 
 
 def init_graph(nodePath, edgePath, graphName) -> str:
@@ -46,7 +45,7 @@ def init_graph(nodePath, edgePath, graphName) -> str:
     sys.setrecursionlimit(20000)
     '''所有的点构成一张图'''
     '''开始构建图'''
-    graph = Graph('TW_graph')
+    geoGraph = GeoGraph('TW_graph')
     '''读取边和点的shapefile文件'''
     '''构建节点类'''
     with shapefile.Reader(nodePath, encoding='utf-8') as nodeFile:
@@ -65,9 +64,9 @@ def init_graph(nodePath, edgePath, graphName) -> str:
             if count % 100000 == 0:
                 print(tempDict)
             # 通过id和坐标构建该点
-            temp = Vertex(id=tempDict['id'], coord=nodeFile.shape(
+            temp = GeoVertex(id=tempDict['id'], coord=nodeFile.shape(
                 count).points, att=tempDict)
-            graph.add_vertex(id=tempDict['id'], vertex=temp)
+            geoGraph.add_vertex(id=tempDict['id'], geoVertex=temp)
             count += 1
     '''构建点与点之间的相邻关系（构建边）'''
     with shapefile.Reader(edgePath, encoding='utf-8') as edgeFile:
@@ -86,36 +85,43 @@ def init_graph(nodePath, edgePath, graphName) -> str:
             tempDict = dict(zip(keyList, item))
             if count % 100000 == 0:
                 print(tempDict)
-            vertex_A = graph.find_vertex(int(tempDict['from_']))
-            vertex_B = graph.find_vertex(int(tempDict['to']))
+            vertex_A = geoGraph.find_vertex(int(tempDict['from_']))
+            vertex_B = geoGraph.find_vertex(int(tempDict['to']))
             '''记录该边坐标'''
             tempDict['coord'] = edgeFile.shape(count).points
 
             '''在图中添加该边'''
-            graph.add_edge(vertex_A, vertex_B, tempDict)
+            geoGraph.add_edge(vertex_A, vertex_B, tempDict)
             count += 1
-    if graph.check_graph_simple():
+    if geoGraph.check_graph_simple():
 
-        return [graph, 'construct graph successfully']
+        return [geoGraph, 'construct geoGraph successfully']
 
     else:
-        return [None, 'construct graph unsuccessfully, please check your code!']
+        return [None, 'construct geoGraph unsuccessfully, please check your code!']
 
 
 if __name__ == '__main__':
     time_s = datetime.datetime.now()
-    graph = Graph()
-    [graph, msg] = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
+    geoGraph = GeoGraph()
+    [geoGraph, msg] = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
                               'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
 
     time_e = datetime.datetime.now()
     print(msg)
     print('构建花费时间:', (time_e-time_s).total_seconds(), '秒')
-    vertex_A = graph.find_vertex(1)
-    vertex_B = graph.find_vertex(2871)
-    vertex_C = graph.find_vertex(1000)
-    print(vertex_A.get_id())
-    print(vertex_B.get_id())
-    print(vertex_C.get_id())
-    print(graph.find_edge(vertex_A, vertex_B))
-    print(graph.findpath_BFS(vertex_A, vertex_C))
+    vertex_A = geoGraph.find_vertex(1)
+    vertex_B = geoGraph.find_vertex(2871)
+    vertex_C = geoGraph.find_vertex(1000)
+    print('A, id:', vertex_A.get_id())
+    print('B, id:', vertex_B.get_id())
+    print('C, id:', vertex_C.get_id())
+    
+    print('A, coord:', vertex_A.get_coord())
+    print('A, 节点:', vertex_A.get_nodeAtt())
+    print('A, 相邻点:', vertex_A.get_conVertex())
+    print('A, 连接边:', vertex_A.get_edgeAtt())
+    print('A, 变化角:',vertex_A.get_deltaAngle())
+
+    print(geoGraph.find_edge(vertex_A, vertex_B))
+    print(geoGraph.findpath_BFS(vertex_A, vertex_C))
