@@ -1,3 +1,4 @@
+import math
 """
 Vertex Class
 ----------
@@ -15,6 +16,7 @@ class Vertex():
     __nodeAttributes: dict  # 节点属性
     # 边属性 {(self, vertex1):{'name':'南京路','fclass':'road',...},(self, vertex2):{'name':'北京路','fclass':'highway',...},...}
     __edgeAttributes: dict
+    
 
     def __init__(self, id: int, att: dict = {}, coord: 'tuple[float]' = []) -> None:
         self.__conVertex = []
@@ -85,3 +87,55 @@ class Vertex():
 
     def __repr__(self) -> str:
         return str(self.__id)
+
+    @staticmethod
+    def calculate_distance(coord1: 'tuple[float]', coord2: 'tuple[float]') -> float:
+        return ((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2)**0.5
+    '''
+    静态方法 计算角度变化
+    '''
+    @staticmethod
+    def calculate_angle(coord1: 'list[tuple[float]]', coord2: 'list[tuple[float]]') -> float:
+        length1 = len(coord1)
+        length2 = len(coord2)
+        # 第一种情况 nodecoord在第一条线的头，第二条线的头
+        if abs(coord2[0][0] - coord1[0][0]) < 1e-4 and abs(coord2[0][1] - coord1[0][1]) < 1e-4:
+            b = Vertex.calculate_distance(coord1[1], coord1[0])
+            c = Vertex.calculate_distance(coord2[1], coord2[0])
+            a = Vertex.calculate_distance(coord1[1], coord2[1])
+            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+
+        # 第二种情况 nodecoord在第一条线的头，第二条线的尾巴
+        elif abs(coord2[length2-1][0] - coord1[0][0]) < 1e-4 and abs(coord2[length2-1][1] - coord1[0][1]) < 1e-4:
+            b = Vertex.calculate_distance(coord1[1], coord1[0])
+            c = Vertex.calculate_distance(coord2[length2-2], coord2[length2-1])
+            a = Vertex.calculate_distance(coord1[1], coord2[length2-2])
+            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+
+        # 第三种情况 nodecoord在第一条线的尾巴，第二条线的头
+        elif abs(coord2[0][0] - coord1[length1-1][0]) < 1e-4 and abs(coord2[0][1] - coord1[length1-1][1]) < 1e-4:
+            b = Vertex.calculate_distance(coord1[length1-2], coord1[length1-1])
+            c = Vertex.calculate_distance(coord2[1], coord2[0])
+            a = Vertex.calculate_distance(coord1[length1-2], coord2[1])
+            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+
+        # 第四种情况 nodecoord在第一条线的尾巴，第二条线的尾巴
+        elif abs(coord2[length2-1][0] - coord1[length1-1][0]) < 1e-4 and abs(coord2[length2-1][1] - coord1[length1-1][1]) < 1e-4:
+            b = Vertex.calculate_distance(coord1[length1-2], coord1[length1-1])
+            c = Vertex.calculate_distance(coord2[length2-2], coord2[length2-1])
+            a = Vertex.calculate_distance(coord1[length1-2], coord2[length2-2])
+            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+
+    '''
+    静态方法 坐标系3857转4326 (x, y)m->(longitude, latitude)°
+    '''
+    @staticmethod
+    def mercatorTolonlat(coord_merca: 'list[tuple[float]]') -> 'list[tuple[float]]':
+        out = []
+        for item in coord_merca:
+            x = item[0]/20037508.34*180
+            y = item[1]/20037508.34*180
+            y = 180.0/math.pi * \
+                (2*math.atan(math.exp(y*math.pi/180.0))-math.pi/2)
+            out.append((x, y))
+        return out

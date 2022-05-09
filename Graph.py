@@ -11,13 +11,10 @@ Graph Class
 class Graph():
     # 定义私有变量
     __vertices: dict  # 节点字典 {id1: vertex1, id2: vertex2, ...}
-    # 反转__vertices的key和value 构建节点字典 {vertex1: id1, vertex2: id2, ...}
-    __vertices_reverse: dict
     __id: str  # 图名
 
     def __init__(self, id: str = '') -> None:
         self.__vertices = {}
-        self.__vertices_reverse = {}
         self.__id = id
 
     '''检查该图是否合法（简单图）'''
@@ -48,23 +45,16 @@ class Graph():
     def set_id(self, id: str) -> None:
         self.__id = id
 
-    '''节点的添加'''
+    '''添加节点'''
 
     def add_vertex(self, id: int, vertex: Vertex) -> None:
         self.__vertices[id] = vertex
-        self.__vertices_reverse[vertex] = id
 
-    '''通过id删除节点'''
-
-    def remove_vertex_id(self, id: int) -> None:
-        del self.__vertices_reverse[self.__vertices[id]]
-        del self.__vertices[id]
-
-    '''通过vertex删除节点'''
+    '''删除节点'''
 
     def remove_vertex_v(self, vertex: Vertex) -> None:
-        del self.__vertices[self.__vertices_reverse[vertex]]
-        del self.__vertices_reverse[vertex]
+        id = vertex.get_id()
+        del self.__vertices[id]
 
     '''图中边的添加与删除'''
 
@@ -82,21 +72,9 @@ class Graph():
         else:
             raise('输入的参数不是int型')
 
-    '''通过vertex查找节点id'''
+    '''通过两节点找边'''
 
-    def find_vertex_id(self, vertex: Vertex = None) -> int:
-        if isinstance(vertex, Vertex):
-            return self.__vertices_reverse[vertex]
-        else:
-            return None
-
-    '''通过两节点或节点号找边'''
-
-    def find_edge(self, vertex_1: Vertex = None, vertex_2: Vertex = None, id1: int = None, id2: int = None) -> dict:
-        if isinstance(id1, int):
-            vertex_1 = self.find_vertex_id(id1)
-        if isinstance(id2, int):
-            vertex_2 = self.find_vertex_id(id2)
+    def find_edge(self, vertex_1: Vertex = None, vertex_2: Vertex = None) -> dict:
         if isinstance(vertex_1, Vertex) and isinstance(vertex_2, Vertex):
             key = vertex_1.get_edgeAtt().keys()
             if (vertex_1, vertex_2) in key:

@@ -103,6 +103,7 @@ def init_graph(nodePath, edgePath, graphName) -> str:
 
 if __name__ == '__main__':
     time_s = datetime.datetime.now()
+    graph = Graph()
     [graph, msg] = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
                               'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
 
@@ -112,9 +113,9 @@ if __name__ == '__main__':
     vertex_A = graph.find_vertex(1)
     vertex_B = graph.find_vertex(2871)
     vertex_C = graph.find_vertex(1000)
-    print(graph.find_vertex_id(vertex_A))
-    print(graph.find_vertex_id(vertex_B))
-    print(graph.find_vertex_id(vertex_C))
+    print(vertex_A.get_id())
+    print(vertex_B.get_id())
+    print(vertex_C.get_id())
 
     print(graph.find_edge(vertex_A, vertex_B))
     print(graph.findpath_BFS(vertex_A, vertex_C))
