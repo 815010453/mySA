@@ -1,14 +1,11 @@
 from Vertex import Vertex
-from Edge import Edge
 from Graph import Graph
 import datetime
 import numpy as np
 import shapefile  # 使用pyshp
 from osgeo import osr
 import os
-import pickle
 import sys
-import traceback
 # gdal对应的proj.db在这个文件夹下
 os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
 
@@ -63,13 +60,15 @@ def init_graph(nodePath, edgePath, graphName) -> str:
         for item in allRecords:
             # 创建节点
             # 将key和对应的value打包成一个字典
-            tempdict = dict(zip(keyList, item))
+            tempDict = dict(zip(keyList, item))
             if count % 100000 == 0:
-                print(tempdict)
-            temp = Vertex(id=tempdict['id'], coord=nodeFile.shape(
-                count).points, att=tempdict)
-            graph.add_vertex(key=tempdict['id'], vertex=temp)
+                print(tempDict)
+            # 通过id和坐标构建该点
+            temp = Vertex(id=tempDict['id'], coord=nodeFile.shape(
+                count).points, att=tempDict)
+            graph.add_vertex(id=tempDict['id'], vertex=temp)
             count += 1
+    '''构建点与点之间的相邻关系（构建边）'''
     with shapefile.Reader(edgePath, encoding='utf-8') as edgeFile:
         # 读取属性
         allRecords = edgeFile.records()
@@ -83,21 +82,21 @@ def init_graph(nodePath, edgePath, graphName) -> str:
         for item in allRecords:
             # 创建边
             # 将key和对应的value打包成一个字典
-            tempdict = dict(zip(keyList, item))
+            tempDict = dict(zip(keyList, item))
             if count % 100000 == 0:
-                print(tempdict)
-            vertex_A = graph.find_vertex(tempdict['from_'])
-            vertex_B = graph.find_vertex(tempdict['to'])
-            temp = Edge(id=tempdict['keyId'], coord=edgeFile.shape(
-                count).points, att=tempdict, vertex_A=vertex_A, vertex_B=vertex_B)
-            '''在图中添加该边'''
-            graph.add_edge(vertex_A, vertex_B, temp)
-            count += 1
-    if graph.check_graph():
+                print(tempDict)
+            vertex_A = graph.find_vertex(int(tempDict['from_']))
+            vertex_B = graph.find_vertex(int(tempDict['to']))
+            '''记录该边坐标'''
+            tempDict['coord'] = edgeFile.shape(count).points
 
-        
+            '''在图中添加该边'''
+            graph.add_edge(vertex_A, vertex_B, tempDict)
+            count += 1
+    if graph.check_graph_simple():
+
         return [graph, 'construct graph successfully']
-        
+
     else:
         return [None, 'construct graph unsuccessfully, please check your code!']
 
@@ -105,14 +104,17 @@ def init_graph(nodePath, edgePath, graphName) -> str:
 if __name__ == '__main__':
     time_s = datetime.datetime.now()
     [graph, msg] = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
-                     'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
-    
+                              'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
+
     time_e = datetime.datetime.now()
     print(msg)
-    print('构建花费时间:',(time_e-time_s).total_seconds(), '秒')
+    print('构建花费时间:', (time_e-time_s).total_seconds(), '秒')
     vertex_A = graph.find_vertex(1)
     vertex_B = graph.find_vertex(2871)
-    vertex_C = graph.find_vertex(281)
+    vertex_C = graph.find_vertex(1000)
+    print(graph.find_vertex_id(vertex_A))
+    print(graph.find_vertex_id(vertex_B))
+    print(graph.find_vertex_id(vertex_C))
 
     print(graph.find_edge(vertex_A, vertex_B))
     print(graph.findpath_BFS(vertex_A, vertex_C))
