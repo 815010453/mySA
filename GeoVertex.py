@@ -34,9 +34,9 @@ class GeoVertex():
                 if len(self.__conEdge) > 1:
                     # 添加边的相邻关系
                     for e in self.__conEdge:
-                        geoEdge.add_conEdge(e, geoEdge)
+                        geoEdge.add_conEdge(e, self)
                 # 再调用一次相邻点添加
-                geoVertex.add_conVertex(self,geoEdge)
+                geoVertex.add_conVertex(self, geoEdge)
             
 
     '''删除相邻的节点'''
