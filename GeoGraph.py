@@ -44,14 +44,19 @@ class GeoGraph():
         '''检查边是否合法 无重边 无自边'''
         for id in self.__edges.keys():
             tempValue = self.__edges[id]
-            if id in tempValue.get_conEdge():
-                return False
-            judge = {}
-            for i in tempValue.get_conEdge():
-                if i not in judge.keys() and tempValue in i.get_conEdge():
-                    judge[i] = 1
-                else:
+            v = list(tempValue.get_conEdge().keys())
+            conEdge = list(tempValue.get_conEdge().values())
+            for item in conEdge:
+                if id in item:
                     return False
+            for item in v:
+                judge = {}
+                conEdge = tempValue.get_conEdge()[item]
+                for i in conEdge:
+                    if i not in judge.keys() and tempValue in i.get_conEdge()[item]:
+                        judge[i] = 1
+                    else:
+                        return False
 
         return True
     '''
@@ -60,6 +65,9 @@ class GeoGraph():
 
     def get_vertices(self) -> dict:
         return self.__vertices
+    
+    def get_edges(self) -> dict:
+        return self.__edges
 
     def get_id(self) -> str:
         return self.__id
@@ -81,9 +89,10 @@ class GeoGraph():
     '''图中边的添加与删除'''
 
     def add_edge(self, vertex_A: GeoVertex, vertex_B: GeoVertex, edge: GeoEdge) -> None:
+        # 添加相邻关系
         vertex_A.add_conVertex(vertex_B, edge)
         self.__edges[edge.get_id()] = edge
-
+        
     def remove_edge(self, vertex_A: GeoVertex, vertex_B: GeoVertex, edge: GeoEdge) -> None:
         vertex_A.remove_conVertex(vertex_B, edge)
         del self.__edges[edge.get_id()]
@@ -102,16 +111,7 @@ class GeoGraph():
         conV = vertex_1.get_conVertex()
         index = conV.index(vertex_2)
         return vertex_1.get_conEdge()[index]
-
-    '''在添加完所有边后更新GeoEdge中的相邻边'''
-
-    def update_geoEdge(self) -> None:
-        vertices = list(self.__vertices.values())
-        for v in vertices:
-            conEdge = v.get_conEdge()
-            for e1 in conEdge:
-                for e2 in conEdge:
-                    e1.add_conEdge(e2)
+            
     '''利用BFS遍历从s到t的最短路径(无权图)'''
 
     def findpath_BFS(self, s: 'GeoVertex', t: 'GeoVertex') -> 'list[GeoVertex]':
@@ -226,13 +226,13 @@ class GeoGraph():
     def __repr__(self) -> str:
         return str(self.__id)
 
-    '''最小变化角构建新的图'''
+    '''最小变化角构建新的相邻边关系'''
     @staticmethod
     def constructGraph_deltaAngle(geoGraph: 'GeoGraph') -> 'GeoGraph':
         resGeoGraph = geoGraph
-        for id in resGeoGraph.get_vertices().keys():
-            tempV = resGeoGraph.get_vertices()[id]
-            tempConV = tempV.get_conVertex()
+        for id in resGeoGraph.get_edges().keys():
+            tempV = resGeoGraph.get_edges()[id]
+            tempConV = tempV.get_conEdge()
             # 这种情况是孤点或者端点，不做处理
             if len(tempConV) == 0 or len(tempConV) == 1:
                 continue

@@ -1,5 +1,5 @@
-from GeoVertex import GeoVertex
 import math
+from GeoVertex import GeoVertex
 """
 GeoVertex Class
 ----------
@@ -11,31 +11,33 @@ GeoVertex Class
 
 
 class GeoEdge():
-    __conEdge: 'list[GeoEdge]'  # 相邻的边 [edge1, edge2, ...]
+    # 相邻的边 {v1: [edge1, edge2, ...], v2: [edge3, edge4, ...]}
+    __conEdge: 'dict[GeoVertex]'
     __id: int  # 唯一标识符 id
     # 该边的属性 {'fclass': 'highway', 'name': '公路', ...}
     __edgeAttribute: 'dict[str]'
-    __deltaAngle: 'list[float]'  # 相邻边的变化角 与相邻边对应 [0.12314, 0.112, ...]
+    # 相邻边的变化角 与相邻边对应 {v1: [0.12314, 0.112, ...], v2: [...]}
+    __deltaAngle: 'list[float]'
     __coord: 'list[tuple]'  # 该边坐标 [(x1, y1), (x2, y2), ...]
 
-    def __init__(self, id: int, coord: 'list[tuple]' = [], edgeAtt: 'dict[str]' = {}) -> None:
-        self.__conEdge = []
+    def __init__(self, id: int, vertex_A: GeoVertex, vertex_B: GeoVertex, coord: 'list[tuple]' = [], edgeAtt: 'dict[str]' = {}) -> None:
+        self.__conEdge = {vertex_A:[], vertex_B:[]}
         self.__edgeAttribute = edgeAtt
-        self.__deltaAngle = []
+        self.__deltaAngle = {vertex_A:[], vertex_B:[]}
         self.__coord = coord
         self.__id = id
 
     '''添加相邻的边'''
 
-    def add_conEdge(self, geoEdge: 'GeoEdge') -> None:
+    def add_conEdge(self, geoEdge: 'GeoEdge', vertex: GeoVertex) -> None:
         if geoEdge != self:
-            if geoEdge not in self.__conEdge:
-                self.__conEdge.append(geoEdge)
+            if geoEdge not in self.__conEdge[vertex]:
+                self.__conEdge[vertex].append(geoEdge)
                 # 增加相邻变化角
-                self.__deltaAngle.append(GeoEdge.calculate_angle(
+                self.__deltaAngle[vertex].append(GeoEdge.calculate_angle(
                     self.__coord, geoEdge.get_coord()))
                 # 再调用一次
-                geoEdge.add_conEdge(self)
+                geoEdge.add_conEdge(self, vertex)
     '''删除相邻的边'''
 
     def remove_conEdge(self, geoEdge: 'GeoEdge') -> None:
@@ -47,7 +49,7 @@ class GeoEdge():
 
     '''这些都是私有变量的设置方法 set与get'''
 
-    def get_conEdge(self) -> 'list[GeoEdge]':
+    def get_conEdge(self) -> 'dict[GeoVertex]':
         return self.__conEdge
 
     def get_id(self) -> int:

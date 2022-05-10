@@ -5,6 +5,8 @@ import datetime
 import shapefile  # 使用pyshp
 
 '''图的构建'''
+
+
 def init_graph(nodePath, edgePath, graphName) -> str:
     '''所有的点构成一张图'''
     '''开始构建图'''
@@ -46,16 +48,17 @@ def init_graph(nodePath, edgePath, graphName) -> str:
             # 创建边
             # 将key和对应的value打包成一个字典
             tempDict = dict(zip(keyList, item))
-            # 构建该边
-            tempEdge = GeoEdge(id = tempDict['keyId'],coord=edgeFile.shape(count).points,edgeAtt=tempDict)
+
             if count % 100000 == 0:
                 print(tempDict)
             vertex_A = geoGraph.find_vertex(int(tempDict['from_']))
             vertex_B = geoGraph.find_vertex(int(tempDict['to']))
+            # 构建该边
+            tempEdge = GeoEdge(id=tempDict['keyId'], coord=edgeFile.shape(
+                count).points, edgeAtt=tempDict, vertex_A=vertex_A, vertex_B=vertex_B)
             '''在图中添加该边'''
             geoGraph.add_edge(vertex_A, vertex_B, tempEdge)
             count += 1
-    geoGraph.update_geoEdge()
     if geoGraph.check_graph_simple():
 
         return [geoGraph, 'construct geoGraph successfully']
@@ -68,7 +71,7 @@ if __name__ == '__main__':
     time_s = datetime.datetime.now()
     geoGraph = GeoGraph()
     [geoGraph, msg] = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
-                              'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
+                                 'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
 
     time_e = datetime.datetime.now()
     print(msg)
@@ -79,7 +82,7 @@ if __name__ == '__main__':
     print('A, id:', vertex_A.get_id())
     print('B, id:', vertex_B.get_id())
     print('C, id:', vertex_C.get_id())
-    
+
     print('A, coord:', vertex_A.get_coord())
     print('A, 节点:', vertex_A.get_nodeAtt())
     print('A, 相邻点:', vertex_A.get_conVertex())
