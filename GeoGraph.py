@@ -5,6 +5,7 @@ import numpy as np
 import shapefile  # 使用pyshp
 from osgeo import osr
 import os
+import copy
 # gdal对应的proj.db在这个文件夹下
 os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
 """
@@ -99,18 +100,19 @@ class GeoGraph():
 
     '''通过节点id查找节点'''
 
-    def find_vertex(self, id: int = None) -> GeoVertex:
-        if isinstance(id, int):
-            return self.__vertices[id]
-        else:
-            raise('输入的参数不是int型')
+    def find_vertex(self, id: int) -> GeoVertex:
+        return self.__vertices[id]
 
     '''通过两节点找边'''
 
-    def find_edge(self, vertex_1: GeoVertex, vertex_2: GeoVertex) -> GeoEdge:
+    def find_edge_v(self, vertex_1: GeoVertex, vertex_2: GeoVertex) -> GeoEdge:
         conV = vertex_1.get_conVertex()
         index = conV.index(vertex_2)
         return vertex_1.get_conEdge()[index]
+    
+    '''通过边号找边'''
+    def find_edge_id(self, id:int)->GeoEdge:
+        return self.__edges[id]
             
     '''利用BFS遍历从s到t的最短路径(无权图)'''
 
@@ -227,25 +229,40 @@ class GeoGraph():
         return str(self.__id)
 
     '''最小变化角构建新的相邻边关系'''
-    @staticmethod
-    def constructGraph_deltaAngle(geoGraph: 'GeoGraph') -> 'GeoGraph':
-        resGeoGraph = geoGraph
-        for id in resGeoGraph.get_edges().keys():
-            tempV = resGeoGraph.get_edges()[id]
-            tempConV = tempV.get_conEdge()
-            # 这种情况是孤点或者端点，不做处理
-            if len(tempConV) == 0 or len(tempConV) == 1:
-                continue
-            deltaAngleDict = tempV.get_deltaAngle()
+    def construct_Edge_minDeltaAngle(self) -> None:
+        keyId = self.get_edges().keys()
+        for id in keyId:
+            tempEdge = self.get_edges()[id]
+            tempConEdge = tempEdge.get_conEdge()
+            print(tempEdge.get_conEdge())
+            # 这种环路比较特殊 需要特殊处理
+            #if len(tempConEdge.keys()) == 1:
+            [vertex1, vertex2] = tempConEdge.keys()
+            
+            deltaAngle = tempEdge.get_deltaAngle()
+            # ==0的情况是端点，不做处理
+            if len(tempConEdge[vertex1]) != 0:
+                deltaAngle_vertex1 = deltaAngle[vertex1]
+                # 查找变化角最小,且<pi/6的边
+                minAngle = min(deltaAngle_vertex1)
+                if minAngle < np.pi/6:
+                    minEdge = deltaAngle_vertex1.index(minAngle)
+                    tempConEdge_vertex1 = [x for x in tempConEdge[vertex1] if x != minEdge]
+                    for i in tempConEdge_vertex1:
+                        tempEdge.remove_conEdge(i, vertex1)
+            if len(tempConEdge[vertex2]) != 0:
+                deltaAngle_vertex2 = deltaAngle[vertex2]
+                # 查找变化角最小,且<pi/6的边
+                minAngle = min(deltaAngle_vertex2)
+                if minAngle < np.pi/6:
+                    minEdge = deltaAngle_vertex2.index(minAngle)
+                    tempConEdge_vertex2 = [x for x in tempConEdge[vertex2] if x != minEdge]
+                    for i in tempConEdge_vertex2:
+                        tempEdge.remove_conEdge(i, vertex2)
+                
 
-            # 查找变化角最小,且<pi/6的边
-            minAngle = min(deltaAngleDict.values())
-            if minAngle < np.pi/6:
-                minEdge = min(deltaAngleDict, key=lambda x: deltaAngleDict[x])
-                resGeoGraph.get_vertices()[id].set_conVertex(list(minEdge))
-            else:
-                resGeoGraph.get_vertices()[id].set_conVertex([])
-        return resGeoGraph
+
+        
 
     '''求和'''
     @staticmethod

@@ -1,5 +1,6 @@
 import math
 from GeoVertex import GeoVertex
+
 """
 GeoVertex Class
 ----------
@@ -17,10 +18,10 @@ class GeoEdge():
     # 该边的属性 {'fclass': 'highway', 'name': '公路', ...}
     __edgeAttribute: 'dict[str]'
     # 相邻边的变化角 与相邻边对应 {v1: [0.12314, 0.112, ...], v2: [...]}
-    __deltaAngle: 'list[float]'
-    __coord: 'list[tuple]'  # 该边坐标 [(x1, y1), (x2, y2), ...]
+    __deltaAngle: 'dict[GeoVertex]'
+    __coord: 'list[tuple[float]]'  # 该边坐标 [(x1, y1), (x2, y2), ...]
 
-    def __init__(self, id: int, vertex_A: GeoVertex, vertex_B: GeoVertex, coord: 'list[tuple]' = [], edgeAtt: 'dict[str]' = {}) -> None:
+    def __init__(self, id: int, vertex_A: GeoVertex, vertex_B: GeoVertex, coord: 'list[tuple[float]]' = [], edgeAtt: 'dict[str]' = {}) -> None:
         self.__conEdge = {vertex_A:[], vertex_B:[]}
         self.__edgeAttribute = edgeAtt
         self.__deltaAngle = {vertex_A:[], vertex_B:[]}
@@ -40,12 +41,12 @@ class GeoEdge():
                 geoEdge.add_conEdge(self, vertex)
     '''删除相邻的边'''
 
-    def remove_conEdge(self, geoEdge: 'GeoEdge') -> None:
-        if geoEdge in self.__conEdge:
-            self.__deltaAngle.remove(self.__conEdge.index(geoEdge))
-            self.__conEdge.remove(geoEdge)
+    def remove_conEdge(self, geoEdge: 'GeoEdge', vertex: GeoVertex) -> None:
+        if geoEdge in self.__conEdge[vertex]:
+            del self.__deltaAngle[vertex][self.__conEdge[vertex].index(geoEdge)]
+            self.__conEdge[vertex].remove(geoEdge)
             # 再调用一次
-            geoEdge.remove_conEdge(self)
+            geoEdge.remove_conEdge(self, vertex)
 
     '''这些都是私有变量的设置方法 set与get'''
 
@@ -61,13 +62,13 @@ class GeoEdge():
     def get_deltaAngle(self) -> 'list[float]':
         return self.__deltaAngle
 
-    def get_coord(self) -> 'list[tuple]':
+    def get_coord(self) -> 'list[tuple[float]]':
         return self.__coord
 
     def set_id(self, id: int) -> None:
         self.__id = id
 
-    def set_coord(self, coord: 'list[tuple]') -> None:
+    def set_coord(self, coord: 'list[tuple[float]]') -> None:
         self.__coord = coord
 
     def set_att(self, att: 'dict[str]') -> None:
@@ -78,6 +79,7 @@ class GeoEdge():
 
     def __repr__(self) -> str:
         return str(self.__id)
+    
     '''
     静态方法 计算距离
     '''
@@ -138,3 +140,6 @@ class GeoEdge():
                 (2*math.atan(math.exp(y*math.pi/180.0))-math.pi/2)
             out.append((x, y))
         return out
+
+
+    
