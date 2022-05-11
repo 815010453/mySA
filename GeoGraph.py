@@ -1,4 +1,3 @@
-from attr import field
 from GeoVertex import GeoVertex
 from GeoEdge import GeoEdge
 import numpy as np
@@ -60,6 +59,7 @@ class GeoGraph():
                         return False
 
         return True
+    
     '''
     这些都是私有变量的设置方法 set与get
     '''

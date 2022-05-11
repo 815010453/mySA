@@ -1,8 +1,9 @@
+#coding=utf-8
 from GeoVertex import GeoVertex
 from GeoEdge import GeoEdge
 from GeoGraph import GeoGraph
 import datetime
-import shapefile  # 使用pyshp
+import shapefile # 使用pyshp
 
 '''图的构建'''
 
@@ -10,7 +11,7 @@ import shapefile  # 使用pyshp
 def init_graph(nodePath, edgePath, graphName) -> GeoGraph:
     '''所有的点构成一张图'''
     '''开始构建图'''
-    geoGraph = GeoGraph('TW_graph')
+    geoGraph = GeoGraph(graphName)
     '''读取边和点的shapefile文件'''
     '''构建节点类'''
     with shapefile.Reader(nodePath, encoding='utf-8') as nodeFile:
@@ -62,6 +63,11 @@ def init_graph(nodePath, edgePath, graphName) -> GeoGraph:
     #geoGraph.construct_Edge_minDeltaAngle()
     print('construct geoGraph successfully')
     return geoGraph
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> edaf2ddbce5f8b908070353067ddbd21615a91b0
 
 
 if __name__ == '__main__':
