@@ -25,18 +25,21 @@ class GeoVertex():
     '''添加相邻的节点'''
 
     def add_conVertex(self, geoVertex: 'GeoVertex', geoEdge) -> None:
-        if geoVertex != self:
-            if geoVertex not in self.__conVertex:
-                # 添加相邻点
-                self.__conVertex.append(geoVertex)
-                # 添加相邻边
-                self.__conEdge.append(geoEdge)
-                if len(self.__conEdge) > 1:
-                    # 添加边的相邻关系
-                    for e in self.__conEdge:
-                        geoEdge.add_conEdge(e, self)
-                # 再调用一次相邻点添加
-                geoVertex.add_conVertex(self, geoEdge)
+        # 添加相邻点
+        self.__conVertex.append(geoVertex)
+        # 添加相邻边
+        self.__conEdge.append(geoEdge)
+        if len(self.__conEdge) > 1:
+            # 添加边的相邻关系
+            for e in self.__conEdge:
+                geoEdge.add_conEdge(e, self)
+        # 再调用一次相邻点添加
+        geoVertex.__conVertex.append(self)
+        geoVertex.__conEdge.append(geoEdge)
+        if len(geoVertex.__conEdge) > 1:
+            # 添加边的相邻关系
+            for e in geoVertex.__conEdge:
+                geoEdge.add_conEdge(e, geoVertex)
             
 
     '''删除相邻的节点'''

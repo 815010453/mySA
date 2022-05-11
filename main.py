@@ -60,13 +60,8 @@ def init_graph(nodePath, edgePath, graphName) -> GeoGraph:
             geoGraph.add_edge(vertex_A, vertex_B, tempEdge)
             count += 1
     #geoGraph.construct_Edge_minDeltaAngle()
-    if geoGraph.check_graph_simple():
-        print('construct geoGraph successfully')
-        return geoGraph
-
-    else:
-        print('construct geoGraph unsuccessfully, please check your code!')
-        return None
+    print('construct geoGraph successfully')
+    return geoGraph
 
 
 if __name__ == '__main__':
@@ -105,7 +100,7 @@ if __name__ == '__main__':
     print('A, coord:', edge_A.get_coord())
     print('A, 节点:', edge_A.get_edgeAtt())
     print('A, 相邻边', edge_A.get_conEdge())
-    print(edge_A.get_deltaAngle)
+    print(edge_A.get_deltaAngle())
 
     print('B, id:', edge_B.get_id())
     print('B, coord:', edge_B.get_coord())
