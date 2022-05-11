@@ -63,11 +63,6 @@ def init_graph(nodePath, edgePath, graphName) -> GeoGraph:
     #geoGraph.construct_Edge_minDeltaAngle()
     print('construct geoGraph successfully')
     return geoGraph
-<<<<<<< HEAD
-=======
-
-
->>>>>>> edaf2ddbce5f8b908070353067ddbd21615a91b0
 
 
 if __name__ == '__main__':
