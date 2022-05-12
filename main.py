@@ -95,18 +95,25 @@ if __name__ == '__main__':
     print('A, 相邻边', vertex_A.get_conEdge())
     edge_A = geoGraph.find_edge_id(483)
     edge_B = geoGraph.find_edge_id(484)
+    edge_C = geoGraph.find_edge_id(485)
 
     print('A, id:', edge_A.get_id())
     print('A, coord:', edge_A.get_coord())
-    print('A, 节点:', edge_A.get_edgeAtt())
+    print('A, 边:', edge_A.get_edgeAtt())
     print('A, 相邻边', edge_A.get_conEdge())
     print(edge_A.get_deltaAngle())
 
     print('B, id:', edge_B.get_id())
     print('B, coord:', edge_B.get_coord())
-    print('B, 节点:', edge_B.get_edgeAtt())
+    print('B, 边:', edge_B.get_edgeAtt())
     print('B, 相邻边', edge_B.get_conEdge())
     print(edge_B.get_deltaAngle())
+
+    print('C, id:', edge_C.get_id())
+    print('C, coord:', edge_C.get_coord())
+    print('C, 边:', edge_C.get_edgeAtt())
+    print('C, 相邻边', edge_C.get_conEdge())
+    print(edge_C.get_deltaAngle())
 
 '''
     deltaAngleGeoGraph=GeoGraph.constructGraph_deltaAngle(geoGraph)
