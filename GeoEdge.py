@@ -13,25 +13,25 @@ GeoVertex Class
 
 class GeoEdge:
     # 相邻的边 {v1: [edge1, edge2, ...], v2: [edge3, edge4, ...]}
-    __conEdge: 'dict[GeoVertex]'
-    __id: int  # 唯一标识符 id
+    __conEdge: 'dict[GeoVertex, list[GeoEdge]]'
+    __id: int  # 唯一标识符 v_id
     # 该边的属性 {'fclass': 'highway', 'name': '公路', ...}
-    __edgeAttribute: 'dict[str]'
+    __edgeAttribute: dict
     # 相邻边的变化角 与相邻边对应 {v1: [0.12314, 0.112, ...], v2: [...]}
-    __deltaAngle: 'dict[GeoVertex]'
+    __deltaAngle: 'dict[GeoVertex, list[float]]'
     __coord: 'list[tuple[float]]'  # 该边坐标 [(x1, y1), (x2, y2), ...]
 
-    def __init__(self, id: int, vertex_A: GeoVertex, vertex_B: GeoVertex, coord: 'list[tuple[float]]' = [],
-                 edgeAtt: 'dict[str]' = {}) -> None:
-        self.__conEdge = {vertex_A: [], vertex_B: []}
-        self.__edgeAttribute = edgeAtt
-        self.__deltaAngle = {vertex_A: [], vertex_B: []}
+    def __init__(self, e_id: int, vertex_a: GeoVertex, vertex_b: GeoVertex, coord: 'list[tuple[float]]' = [],
+                 edge_att: dict = {}) -> None:
+        self.__conEdge = {vertex_a: [], vertex_b: []}
+        self.__edgeAttribute = edge_att
+        self.__deltaAngle = {vertex_a: [], vertex_b: []}
         self.__coord = coord
-        self.__id = id
+        self.__id = e_id
 
     '''添加相邻的边'''
 
-    def add_conEdge(self, edge: 'GeoEdge', vertex: GeoVertex) -> None:
+    def add_con_edge(self, edge: 'GeoEdge', vertex: GeoVertex) -> None:
         if edge != self:
             if edge not in self.__conEdge[vertex]:
                 self.__conEdge[vertex].append(edge)
@@ -39,29 +39,29 @@ class GeoEdge:
                 self.__deltaAngle[vertex].append(GeoEdge.calculate_angle(
                     self.__coord, edge.get_coord()))
                 # 再调用一次
-                edge.add_conEdge(self, vertex)
+                edge.add_con_edge(self, vertex)
 
     '''删除相邻的边'''
 
-    def remove_conEdge(self, edge: 'GeoEdge', vertex: GeoVertex) -> None:
+    def remove_con_edge(self, edge: 'GeoEdge', vertex: GeoVertex) -> None:
         if edge in self.__conEdge[vertex]:
             del self.__deltaAngle[vertex][self.__conEdge[vertex].index(edge)]
             self.__conEdge[vertex].remove(edge)
             # 再调用一次
-            edge.remove_conEdge(self, vertex)
+            edge.remove_con_edge(self, vertex)
 
     '''这些都是私有变量的设置方法 set与get'''
 
-    def get_conEdge(self) -> 'dict[GeoVertex]':
+    def get_con_edge(self) -> 'dict[GeoVertex, list[GeoEdge]]':
         return self.__conEdge
 
     def get_id(self) -> int:
         return self.__id
 
-    def get_edgeAtt(self) -> 'dict[str]':
+    def get_edge_att(self) -> 'dict[str]':
         return self.__edgeAttribute
 
-    def get_deltaAngle(self) -> 'list[float]':
+    def get_delta_angle(self) -> 'dict[GeoVertex, list[float]]':
         return self.__deltaAngle
 
     def get_coord(self) -> 'list[tuple[float]]':
@@ -75,6 +75,12 @@ class GeoEdge:
 
     def set_att(self, att: 'dict[str]') -> None:
         self.__edgeAttribute = att
+
+    def set_delta_angle(self, angle: 'dict[GeoVertex, list[float]]') -> None:
+        self.__deltaAngle = angle
+
+    def set_con_edge(self, con_edge: 'list[GeoEdge]', vertex: GeoVertex) -> None:
+        self.__conEdge[vertex] = con_edge
 
     def __str__(self) -> str:
         return str(self.__id)
@@ -137,7 +143,7 @@ class GeoEdge:
     '''
 
     @staticmethod
-    def mercatorTolonlat(coord_merca: 'list[tuple[float]]') -> 'list[tuple[float]]':
+    def mercator_tolonlat(coord_merca: 'list[tuple[float]]') -> 'list[tuple[float]]':
         out = []
         for item in coord_merca:
             x = item[0] / 20037508.34 * 180

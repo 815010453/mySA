@@ -24,7 +24,7 @@ class GeoVertex():
 
     '''添加相邻的节点'''
 
-    def add_conVertex(self, vertex: 'GeoVertex', geoEdge) -> None:
+    def add_con_vertex(self, vertex: 'GeoVertex', geoEdge) -> None:
         if vertex != self and vertex not in self.__conVertex:
             # 添加相邻点
             self.__conVertex.append(vertex)
@@ -34,7 +34,7 @@ class GeoVertex():
         if len(self.__conEdge) > 1:
             # 添加边的相邻关系
             for e in self.__conEdge:
-                geoEdge.add_conEdge(e, self)
+                geoEdge.add_con_edge(e, self)
         # 再调用一次相邻点添加
         if vertex != self and self not in vertex.__conVertex:
             vertex.__conVertex.append(self)
@@ -43,24 +43,24 @@ class GeoVertex():
         if len(vertex.__conEdge) > 1:
             # 添加边的相邻关系
             for e in vertex.__conEdge:
-                geoEdge.add_conEdge(e, vertex)
+                geoEdge.add_con_edge(e, vertex)
 
     '''删除相邻的节点'''
 
-    def remove_conVertex(self, vertex: 'GeoVertex', edge) -> None:
+    def remove_con_vertex(self, vertex: 'GeoVertex', edge) -> None:
         if vertex in self.__conVertex:
             # 删除相邻点
             self.__conVertex.remove(vertex)
             # 删除相邻边
             self.__conEdge.remove(edge)
             # 再调用一次相邻点删除
-            vertex.remove_conVertex(self, edge)
+            vertex.remove_con_vertex(self, edge)
 
     '''
     这些都是私有变量的设置方法 set与get
     '''
 
-    def get_conVertex(self) -> 'list[GeoVertex]':
+    def get_con_vertex(self) -> 'list[GeoVertex]':
         return self.__conVertex
 
     def get_id(self) -> int:
@@ -69,13 +69,13 @@ class GeoVertex():
     def get_coord(self) -> 'list[float]':
         return self.__coord
 
-    def get_nodeAtt(self) -> dict:
+    def get_node_att(self) -> dict:
         return self.__nodeAttributes
 
-    def get_conEdge(self) -> list:
+    def get_con_edge(self) -> list:
         return self.__conEdge
 
-    def set_conVertex(self, vertices: 'list[GeoVertex]') -> None:
+    def set_con_vertex(self, vertices: 'list[GeoVertex]') -> None:
         self.__conVertex = vertices
 
     def set_id(self, id: int) -> None:
@@ -84,7 +84,7 @@ class GeoVertex():
     def set_coord(self, coord: 'list[float]') -> None:
         self.__coord = coord
 
-    def set_nodeAtt(self, att: dict) -> None:
+    def set_node_att(self, att: dict) -> None:
         self.__nodeAttributes = att
 
     def __str__(self) -> str:
