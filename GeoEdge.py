@@ -11,7 +11,7 @@ GeoVertex Class
 """
 
 
-class GeoEdge():
+class GeoEdge:
     # 相邻的边 {v1: [edge1, edge2, ...], v2: [edge3, edge4, ...]}
     __conEdge: 'dict[GeoVertex]'
     __id: int  # 唯一标识符 id
@@ -21,32 +21,34 @@ class GeoEdge():
     __deltaAngle: 'dict[GeoVertex]'
     __coord: 'list[tuple[float]]'  # 该边坐标 [(x1, y1), (x2, y2), ...]
 
-    def __init__(self, id: int, vertex_A: GeoVertex, vertex_B: GeoVertex, coord: 'list[tuple[float]]' = [], edgeAtt: 'dict[str]' = {}) -> None:
-        self.__conEdge = {vertex_A:[], vertex_B:[]}
+    def __init__(self, id: int, vertex_A: GeoVertex, vertex_B: GeoVertex, coord: 'list[tuple[float]]' = [],
+                 edgeAtt: 'dict[str]' = {}) -> None:
+        self.__conEdge = {vertex_A: [], vertex_B: []}
         self.__edgeAttribute = edgeAtt
-        self.__deltaAngle = {vertex_A:[], vertex_B:[]}
+        self.__deltaAngle = {vertex_A: [], vertex_B: []}
         self.__coord = coord
         self.__id = id
 
     '''添加相邻的边'''
 
-    def add_conEdge(self, geoEdge: 'GeoEdge', vertex: GeoVertex) -> None:
-        if geoEdge != self:
-            if geoEdge not in self.__conEdge[vertex]:
-                self.__conEdge[vertex].append(geoEdge)
+    def add_conEdge(self, edge: 'GeoEdge', vertex: GeoVertex) -> None:
+        if edge != self:
+            if edge not in self.__conEdge[vertex]:
+                self.__conEdge[vertex].append(edge)
                 # 增加相邻变化角
                 self.__deltaAngle[vertex].append(GeoEdge.calculate_angle(
-                    self.__coord, geoEdge.get_coord()))
+                    self.__coord, edge.get_coord()))
                 # 再调用一次
-                geoEdge.add_conEdge(self, vertex)
+                edge.add_conEdge(self, vertex)
+
     '''删除相邻的边'''
 
-    def remove_conEdge(self, geoEdge: 'GeoEdge', vertex: GeoVertex) -> None:
-        if geoEdge in self.__conEdge[vertex]:
-            del self.__deltaAngle[vertex][self.__conEdge[vertex].index(geoEdge)]
-            self.__conEdge[vertex].remove(geoEdge)
+    def remove_conEdge(self, edge: 'GeoEdge', vertex: GeoVertex) -> None:
+        if edge in self.__conEdge[vertex]:
+            del self.__deltaAngle[vertex][self.__conEdge[vertex].index(edge)]
+            self.__conEdge[vertex].remove(edge)
             # 再调用一次
-            geoEdge.remove_conEdge(self, vertex)
+            edge.remove_conEdge(self, vertex)
 
     '''这些都是私有变量的设置方法 set与get'''
 
@@ -79,17 +81,19 @@ class GeoEdge():
 
     def __repr__(self) -> str:
         return str(self.__id)
-    
+
     '''
     静态方法 计算距离
     '''
+
     @staticmethod
     def calculate_distance(coord1: 'tuple[float]', coord2: 'tuple[float]') -> float:
-        return ((coord1[0] - coord2[0])**2 + (coord1[1] - coord2[1])**2)**0.5
+        return ((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2) ** 0.5
 
     '''
     静态方法 计算角度变化
     '''
+
     @staticmethod
     def calculate_angle(coord1: 'list[tuple[float]]', coord2: 'list[tuple[float]]') -> float:
         length1 = len(coord1)
@@ -99,47 +103,46 @@ class GeoEdge():
             b = GeoEdge.calculate_distance(coord1[1], coord1[0])
             c = GeoEdge.calculate_distance(coord2[1], coord2[0])
             a = GeoEdge.calculate_distance(coord1[1], coord2[1])
-            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+            return math.pi - math.acos(round((b * b + c * c - a * a) / (2.0 * b * c), 10))
 
         # 第二种情况 nodecoord在第一条线的头，第二条线的尾巴
-        elif abs(coord2[length2-1][0] - coord1[0][0]) < 1e-4 and abs(coord2[length2-1][1] - coord1[0][1]) < 1e-4:
+        elif abs(coord2[length2 - 1][0] - coord1[0][0]) < 1e-4 and abs(coord2[length2 - 1][1] - coord1[0][1]) < 1e-4:
             b = GeoEdge.calculate_distance(coord1[1], coord1[0])
             c = GeoEdge.calculate_distance(
-                coord2[length2-2], coord2[length2-1])
-            a = GeoEdge.calculate_distance(coord1[1], coord2[length2-2])
-            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+                coord2[length2 - 2], coord2[length2 - 1])
+            a = GeoEdge.calculate_distance(coord1[1], coord2[length2 - 2])
+            return math.pi - math.acos(round((b * b + c * c - a * a) / (2.0 * b * c), 10))
 
         # 第三种情况 nodecoord在第一条线的尾巴，第二条线的头
-        elif abs(coord2[0][0] - coord1[length1-1][0]) < 1e-4 and abs(coord2[0][1] - coord1[length1-1][1]) < 1e-4:
+        elif abs(coord2[0][0] - coord1[length1 - 1][0]) < 1e-4 and abs(coord2[0][1] - coord1[length1 - 1][1]) < 1e-4:
             b = GeoEdge.calculate_distance(
-                coord1[length1-2], coord1[length1-1])
+                coord1[length1 - 2], coord1[length1 - 1])
             c = GeoEdge.calculate_distance(coord2[1], coord2[0])
-            a = GeoEdge.calculate_distance(coord1[length1-2], coord2[1])
-            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+            a = GeoEdge.calculate_distance(coord1[length1 - 2], coord2[1])
+            return math.pi - math.acos(round((b * b + c * c - a * a) / (2.0 * b * c), 10))
 
         # 第四种情况 nodecoord在第一条线的尾巴，第二条线的尾巴
-        elif abs(coord2[length2-1][0] - coord1[length1-1][0]) < 1e-4 and abs(coord2[length2-1][1] - coord1[length1-1][1]) < 1e-4:
+        elif abs(coord2[length2 - 1][0] - coord1[length1 - 1][0]) < 1e-4 and abs(
+                coord2[length2 - 1][1] - coord1[length1 - 1][1]) < 1e-4:
             b = GeoEdge.calculate_distance(
-                coord1[length1-2], coord1[length1-1])
+                coord1[length1 - 2], coord1[length1 - 1])
             c = GeoEdge.calculate_distance(
-                coord2[length2-2], coord2[length2-1])
+                coord2[length2 - 2], coord2[length2 - 1])
             a = GeoEdge.calculate_distance(
-                coord1[length1-2], coord2[length2-2])
-            return (math.pi - math.acos(round((b*b+c*c-a*a) / (2.0*b*c), 10)))
+                coord1[length1 - 2], coord2[length2 - 2])
+            return math.pi - math.acos(round((b * b + c * c - a * a) / (2.0 * b * c), 10))
 
     '''
     静态方法 坐标系3857转4326 (x, y)m->(longitude, latitude)°
     '''
+
     @staticmethod
     def mercatorTolonlat(coord_merca: 'list[tuple[float]]') -> 'list[tuple[float]]':
         out = []
         for item in coord_merca:
-            x = item[0]/20037508.34*180
-            y = item[1]/20037508.34*180
-            y = 180.0/math.pi * \
-                (2*math.atan(math.exp(y*math.pi/180.0))-math.pi/2)
+            x = item[0] / 20037508.34 * 180
+            y = item[1] / 20037508.34 * 180
+            y = 180.0 / math.pi * \
+                (2 * math.atan(math.exp(y * math.pi / 180.0)) - math.pi / 2)
             out.append((x, y))
         return out
-
-
-    

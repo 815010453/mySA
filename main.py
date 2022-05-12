@@ -1,78 +1,77 @@
-#coding=utf-8
+# coding=utf-8
 from GeoVertex import GeoVertex
 from GeoEdge import GeoEdge
 from GeoGraph import GeoGraph
 import datetime
-import shapefile # 使用pyshp
+import shapefile  # 使用pyshp
 
 '''图的构建'''
 
 
 def init_graph(nodePath, edgePath, graphName) -> GeoGraph:
-    '''所有的点构成一张图'''
+    """所有的点构成一张图"""
     '''开始构建图'''
-    geoGraph = GeoGraph(graphName)
+    geo_graph = GeoGraph(graphName)
     '''读取边和点的shapefile文件'''
     '''构建节点类'''
     with shapefile.Reader(nodePath, encoding='utf-8') as nodeFile:
         # 读取属性
-        allRecords = nodeFile.records()
-        keyList = []  # 字段名
+        all_records = nodeFile.records()
+        key_list = []  # 字段名
         for i in nodeFile.fields:
-            keyList.append(i[0])
+            key_list.append(i[0])
         # 不需要第0个字段名
-        del keyList[0]
+        del key_list[0]
         count = 0
-        for item in allRecords:
+        for item in all_records:
             # 创建节点
             # 将key和对应的value打包成一个字典
-            tempDict = dict(zip(keyList, item))
+            temp_dict = dict(zip(key_list, item))
             if count % 100000 == 0:
-                print(tempDict)
+                print(temp_dict)
             # 通过id和坐标构建该点
-            temp = GeoVertex(id=tempDict['id'], coord=nodeFile.shape(
-                count).points, att=tempDict)
-            geoGraph.add_vertex(id=tempDict['id'], geoVertex=temp)
+            temp = GeoVertex(id=temp_dict['id'], coord=nodeFile.shape(
+                count).points, att=temp_dict)
+            geo_graph.add_vertex(id=temp_dict['id'], geoVertex=temp)
             count += 1
     '''构建点与点之间的相邻关系以及构建边'''
     with shapefile.Reader(edgePath, encoding='utf-8') as edgeFile:
         # 读取属性
-        allRecords = edgeFile.records()
-        keyList = []  # 字段名
+        all_records = edgeFile.records()
+        key_list = []  # 字段名
         for i in edgeFile.fields:
-            keyList.append(i[0])
-        print(keyList)
+            key_list.append(i[0])
+        print(key_list)
         # 不需要第0个字段名
-        del keyList[0]
+        del key_list[0]
         count = 0
-        for item in allRecords:
+        for item in all_records:
             # 创建边
             # 将key和对应的value打包成一个字典
-            tempDict = dict(zip(keyList, item))
+            temp_dict = dict(zip(key_list, item))
 
             if count % 100000 == 0:
-                print(tempDict)
-            vertex_A = geoGraph.find_vertex(int(tempDict['from_']))
-            vertex_B = geoGraph.find_vertex(int(tempDict['to']))
+                print(temp_dict)
+            vertex_a = geo_graph.find_vertex(int(temp_dict['from_']))
+            vertex_b = geo_graph.find_vertex(int(temp_dict['to']))
             # 构建该边
-            tempEdge = GeoEdge(id=tempDict['keyId'], coord=edgeFile.shape(
-                count).points, edgeAtt=tempDict, vertex_A=vertex_A, vertex_B=vertex_B)
+            temp_edge = GeoEdge(id=temp_dict['keyId'], coord=edgeFile.shape(
+                count).points, edgeAtt=temp_dict, vertex_A=vertex_a, vertex_B=vertex_b)
             '''在图中添加该边'''
-            geoGraph.add_edge(vertex_A, vertex_B, tempEdge)
+            geo_graph.add_edge(vertex_a, vertex_b, temp_edge)
             count += 1
-    #geoGraph.construct_Edge_minDeltaAngle()
-    print('construct geoGraph successfully')
-    return geoGraph
+    # geo_graph.construct_Edge_minDeltaAngle()
+    print('construct geo_graph successfully')
+    return geo_graph
 
 
 if __name__ == '__main__':
     time_s = datetime.datetime.now()
-    geoGraph = GeoGraph()
     geoGraph = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
-                                 'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
+                          'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
 
     time_e = datetime.datetime.now()
-    print('构建花费时间:', (time_e-time_s).total_seconds(), '秒')
+    print('构建花费时间:', (time_e - time_s).total_seconds(), '秒')
     '''
     vertex_A = geoGraph.find_vertex(1)
     vertex_B = geoGraph.find_vertex(2871)
@@ -108,7 +107,6 @@ if __name__ == '__main__':
     print('B, 节点:', edge_B.get_edgeAtt())
     print('B, 相邻边', edge_B.get_conEdge())
     print(edge_B.get_deltaAngle())
-
 
 '''
     deltaAngleGeoGraph=GeoGraph.constructGraph_deltaAngle(geoGraph)

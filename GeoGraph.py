@@ -5,6 +5,7 @@ import shapefile  # 使用pyshp
 from osgeo import osr
 import os
 import copy
+
 # gdal对应的proj.db在这个文件夹下
 os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
 """
@@ -16,7 +17,7 @@ GeoGraph Class
 """
 
 
-class GeoGraph():
+class GeoGraph:
     # 定义私有变量
     __vertices: 'dict[int]'  # 节点字典 {id1: vertex1, id2: vertex2, ...}
     __edges: 'dict[int]'  # 边字典 {id1: edge1, id2: edge2}
@@ -30,43 +31,43 @@ class GeoGraph():
     '''检查该图是否合法（简单图）'''
 
     def check_graph_simple(self) -> bool:
-        '''检查点是否合法 无重边，无自环'''
+        """检查点是否合法 无重边，无自环"""
         for id in self.__vertices.keys():
-            tempValue = self.__vertices[id]
-            if id in tempValue.get_conVertex():
+            temp_value = self.__vertices[id]
+            if id in temp_value.get_conVertex():
                 return False
             judge = {}
-            for i in tempValue.get_conVertex():
-                if i not in judge.keys() and tempValue in i.get_conVertex():
+            for i in temp_value.get_conVertex():
+                if i not in judge.keys() and temp_value in i.get_conVertex():
                     judge[i] = 1
                 else:
                     return False
         '''检查边是否合法 无重边 无自边'''
         for id in self.__edges.keys():
-            tempValue = self.__edges[id]
-            v = list(tempValue.get_conEdge().keys())
-            conEdge = list(tempValue.get_conEdge().values())
-            for item in conEdge:
+            temp_value = self.__edges[id]
+            v = list(temp_value.get_conEdge().keys())
+            con_edge = list(temp_value.get_conEdge().values())
+            for item in con_edge:
                 if id in item:
                     return False
             for item in v:
                 judge = {}
-                conEdge = tempValue.get_conEdge()[item]
-                for i in conEdge:
-                    if i not in judge.keys() and tempValue in i.get_conEdge()[item]:
+                con_edge = temp_value.get_conEdge()[item]
+                for i in con_edge:
+                    if i not in judge.keys() and temp_value in i.get_conEdge()[item]:
                         judge[i] = 1
                     else:
                         return False
 
         return True
-    
+
     '''
     这些都是私有变量的设置方法 set与get
     '''
 
     def get_vertices(self) -> dict:
         return self.__vertices
-    
+
     def get_edges(self) -> dict:
         return self.__edges
 
@@ -93,7 +94,7 @@ class GeoGraph():
         # 添加相邻关系
         vertex_A.add_conVertex(vertex_B, edge)
         self.__edges[edge.get_id()] = edge
-        
+
     def remove_edge(self, vertex_A: GeoVertex, vertex_B: GeoVertex, edge: GeoEdge) -> None:
         vertex_A.remove_conVertex(vertex_B, edge)
         del self.__edges[edge.get_id()]
@@ -105,104 +106,107 @@ class GeoGraph():
 
     '''通过两节点找边'''
 
-    def find_edge_v(self, vertex_1: GeoVertex, vertex_2: GeoVertex) -> GeoEdge:
-        conV = vertex_1.get_conVertex()
-        index = conV.index(vertex_2)
+    @staticmethod
+    def find_edge_v(vertex_1: GeoVertex, vertex_2: GeoVertex) -> GeoEdge:
+        con_v = vertex_1.get_conVertex()
+        index = con_v.index(vertex_2)
         return vertex_1.get_conEdge()[index]
-    
+
     '''通过边号找边'''
-    def find_edge_id(self, id:int)->GeoEdge:
+
+    def find_edge_id(self, id: int) -> GeoEdge:
         return self.__edges[id]
-            
+
     '''利用BFS遍历从s到t的最短路径(无权图)'''
 
     def findpath_BFS(self, s: 'GeoVertex', t: 'GeoVertex') -> 'list[GeoVertex]':
         if s == t:
             return []
-        resPath = []  # result
+        res_path = []  # result
         '''use BFS to find the path'''
-        openList = []  # Queue FIFO
-        visitedVertex = {}  # is visited?
-        searchVertex = {}  # key is the son node, value is the father node
+        open_list = []  # Queue FIFO
+        visited_vertex = {}  # is visited?
+        search_vertex = {}  # key is the son node, value is the father node
         for key in self.__vertices.keys():
-            visitedVertex[self.__vertices[key]] = False
-            searchVertex[self.__vertices[key]] = None
-        nextVertex = s
-        openList.append(nextVertex)
-        visitedVertex[nextVertex] = True
+            visited_vertex[self.__vertices[key]] = False
+            search_vertex[self.__vertices[key]] = None
+        next_vertex = s
+        open_list.append(next_vertex)
+        visited_vertex[next_vertex] = True
         while True:
-            openList.remove(nextVertex)
-            for v in nextVertex.get_conVertex():
-                if not visitedVertex[v]:
-                    openList.append(v)
-                    visitedVertex[v] = True
-                    # nextVertex is the father geoVertex
-                    searchVertex[v] = nextVertex
+            open_list.remove(next_vertex)
+            for v in next_vertex.get_conVertex():
+                if not visited_vertex[v]:
+                    open_list.append(v)
+                    visited_vertex[v] = True
+                    # next_vertex is the father geoVertex
+                    search_vertex[v] = next_vertex
                 if v == t:
                     # find the path
-                    resPath.append(t)
-                    nextVertex = t
-                    while searchVertex[nextVertex] is not None:
-                        resPath.append(searchVertex[nextVertex])
-                        nextVertex = searchVertex[nextVertex]
-                    return resPath[::-1]
-            if len(openList) == 0:
+                    res_path.append(t)
+                    next_vertex = t
+                    while search_vertex[next_vertex] is not None:
+                        res_path.append(search_vertex[next_vertex])
+                        next_vertex = search_vertex[next_vertex]
+                    return res_path[::-1]
+            if len(open_list) == 0:
                 # failure
                 return None
             # get first geoVertex
-            nextVertex = openList[0]
+            next_vertex = open_list[0]
 
     '''非递归方法查找从s到t的所有路径'''
 
-    def findAllPath(self, s: GeoVertex, t: GeoVertex) -> dict:
-        '''build stack in order to get all path form s to t'''
+    @staticmethod
+    def findAllPath(s: GeoVertex, t: GeoVertex) -> dict:
+        """build stack in order to get all path form s to t"""
         '''initialize'''
-        mainStack = []  # main stack
-        subStack = []  # second stack
-        mainStack.append(s)
-        nextNodeList = []
+        main_stack = []  # main stack
+        sub_stack = []  # second stack
+        main_stack.append(s)
+        next_node_list = []
         for v in s.get_conVertex():
-            nextNodeList.append(v)
-        subStack.append(nextNodeList)
-        temp = subStack.pop()
+            next_node_list.append(v)
+        sub_stack.append(next_node_list)
+        temp = sub_stack.pop()
         if len(temp) == 0:
             return {}
-        nextNode = temp[0]
-        mainStack.append(temp.pop(0))
-        subStack.append(temp)
+        next_node = temp[0]
+        main_stack.append(temp.pop(0))
+        sub_stack.append(temp)
         count = 0
-        allPath = {}  # key is the number of road, value is the path
-        nextNodeList = []
-        for v in nextNode.get_conVertex():
-            if v not in mainStack:
-                nextNodeList.append(v)
-        subStack.append(nextNodeList)
-        while len(mainStack) != 0:
-            if mainStack[-1] == t:
+        all_path = {}  # key is the number of road, value is the path
+        next_node_list = []
+        for v in next_node.get_conVertex():
+            if v not in main_stack:
+                next_node_list.append(v)
+        sub_stack.append(next_node_list)
+        while len(main_stack) != 0:
+            if main_stack[-1] == t:
                 # find one path and save
                 count += 1
-                allPath[count] = []
-                for v in mainStack:
-                    allPath[count].append(v)
-                mainStack.pop()
-                subStack.pop()
-            nextNodeList = subStack.pop()
-            if len(nextNodeList) != 0:
-                nextNode = nextNodeList[0]
-                mainStack.append(nextNodeList.pop(0))
-                subStack.append(nextNodeList)
-                nextNodeList = []
-                for v in nextNode.get_conVertex():
-                    if v not in mainStack:
-                        nextNodeList.append(v)
-                subStack.append(nextNodeList)
+                all_path[count] = []
+                for v in main_stack:
+                    all_path[count].append(v)
+                main_stack.pop()
+                sub_stack.pop()
+            next_node_list = sub_stack.pop()
+            if len(next_node_list) != 0:
+                next_node = next_node_list[0]
+                main_stack.append(next_node_list.pop(0))
+                sub_stack.append(next_node_list)
+                next_node_list = []
+                for v in next_node.get_conVertex():
+                    if v not in main_stack:
+                        next_node_list.append(v)
+                sub_stack.append(next_node_list)
             else:
-                mainStack.pop()
-        return allPath
+                main_stack.pop()
+        return all_path
 
     '''利用pyshp画图'''
 
-    def draw_geograph(self, outpath: str = '') -> None:
+    def draw_geograph(self, out_path: str = '') -> None:
         # 字段
         for id in self.__vertices.keys():
             if len(self.__vertices[id].get_conVertex()) == 0:
@@ -211,7 +215,7 @@ class GeoGraph():
             break
         print(fields)
         '''
-        w = shapefile.Writer(outpath, shapeType=3, encoding='utf-8')
+        w = shapefile.Writer(out_path, shapeType=3, encoding='utf-8')
         for i in list(fields):
             if i == 'coord':
                 continue
@@ -229,57 +233,56 @@ class GeoGraph():
         return str(self.__id)
 
     '''最小变化角构建新的相邻边关系'''
+
     def construct_Edge_minDeltaAngle(self) -> None:
-        keyId = self.get_edges().keys()
-        for id in keyId:
-            tempEdge = self.get_edges()[id]
-            tempConEdge = tempEdge.get_conEdge()
-            print(tempEdge.get_conEdge())
+        key_id = self.get_edges().keys()
+        for id in key_id:
+            temp_edge = self.get_edges()[id]
+            temp_con_edge = temp_edge.get_conEdge()
+            print(temp_edge.get_conEdge())
             # 这种环路比较特殊 需要特殊处理
-            #if len(tempConEdge.keys()) == 1:
-            [vertex1, vertex2] = tempConEdge.keys()
-            
-            deltaAngle = tempEdge.get_deltaAngle()
+            # if len(temp_con_edge.keys()) == 1:
+            [vertex1, vertex2] = temp_con_edge.keys()
+
+            delta_angle = temp_edge.get_deltaAngle()
             # ==0的情况是端点，不做处理
-            if len(tempConEdge[vertex1]) != 0:
-                deltaAngle_vertex1 = deltaAngle[vertex1]
+            if len(temp_con_edge[vertex1]) != 0:
+                delta_angle_vertex1 = delta_angle[vertex1]
                 # 查找变化角最小,且<pi/6的边
-                minAngle = min(deltaAngle_vertex1)
-                if minAngle < np.pi/6:
-                    minEdge = deltaAngle_vertex1.index(minAngle)
-                    tempConEdge_vertex1 = [x for x in tempConEdge[vertex1] if x != minEdge]
-                    for i in tempConEdge_vertex1:
-                        tempEdge.remove_conEdge(i, vertex1)
-            if len(tempConEdge[vertex2]) != 0:
-                deltaAngle_vertex2 = deltaAngle[vertex2]
+                min_angle = min(delta_angle_vertex1)
+                if min_angle < np.pi / 6:
+                    min_edge = delta_angle_vertex1.index(min_angle)
+                    temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1] if x != min_edge]
+                    for i in temp_con_edge_vertex1:
+                        temp_edge.remove_conEdge(i, vertex1)
+            if len(temp_con_edge[vertex2]) != 0:
+                delta_angle_vertex2 = delta_angle[vertex2]
                 # 查找变化角最小,且<pi/6的边
-                minAngle = min(deltaAngle_vertex2)
-                if minAngle < np.pi/6:
-                    minEdge = deltaAngle_vertex2.index(minAngle)
-                    tempConEdge_vertex2 = [x for x in tempConEdge[vertex2] if x != minEdge]
-                    for i in tempConEdge_vertex2:
-                        tempEdge.remove_conEdge(i, vertex2)
-                
-
-
-        
+                min_angle = min(delta_angle_vertex2)
+                if min_angle < np.pi / 6:
+                    min_edge = delta_angle_vertex2.index(min_angle)
+                    temp_con_edge_vertex2 = [x for x in temp_con_edge[vertex2] if x != min_edge]
+                    for i in temp_con_edge_vertex2:
+                        temp_edge.remove_conEdge(i, vertex2)
 
     '''求和'''
+
     @staticmethod
     def getSumValue(valueStr):
-        sum = 0.0
+        my_sum = 0.0
         for item in valueStr:
-            sum = sum + item
-        return sum
+            my_sum = my_sum + item
+        return my_sum
 
     '''求出现次数最多的字符串'''
+
     @staticmethod
     def getMostTimesValue(valueStr):
-        hash = dict()
+        my_hash = dict()
         for item in valueStr:
-            if item in hash:
-                hash[item] += 1
+            if item in my_hash:
+                my_hash[item] += 1
             else:
-                hash[item] = 1
+                my_hash[item] = 1
 
-        return max(hash, key=hash.get)
+        return max(my_hash, key=my_hash.get)
