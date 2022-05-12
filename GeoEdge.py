@@ -47,8 +47,9 @@ class GeoEdge:
         if edge in self.__conEdge[vertex]:
             del self.__deltaAngle[vertex][self.__conEdge[vertex].index(edge)]
             self.__conEdge[vertex].remove(edge)
-            # 再调用一次
-            edge.remove_con_edge(self, vertex)
+        if self in edge.__conEdge[vertex]:
+            del edge.__deltaAngle[vertex][edge.__conEdge[vertex].index(self)]
+            edge.__conEdge[vertex].remove(self)
 
     '''这些都是私有变量的设置方法 set与get'''
 

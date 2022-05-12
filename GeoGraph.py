@@ -4,7 +4,6 @@ import numpy as np
 import shapefile  # 使用pyshp
 from osgeo import osr
 import os
-import pdb
 
 # gdal对应的proj.db在这个文件夹下
 os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
@@ -117,7 +116,7 @@ class GeoGraph:
         index = con_v.index(vertex_2)
         return vertex_1.get_con_edge()[index]
 
-    '''通过边号找边'''
+    '''通过边号找边 消除引用'''
 
     def find_edge_id(self, e_id: int) -> GeoEdge:
         return self.__edges[e_id]
@@ -220,7 +219,7 @@ class GeoGraph:
     def reconstruct_edge_min_delta_angle(self) -> None:
         key_id = self.__edges.keys()
         for e_id in key_id:
-            if e_id == 16833:
+            if e_id == 14473:
                 print('111')
             temp_edge: GeoEdge = self.__edges[e_id]
             temp_con_edge = temp_edge.get_con_edge()
@@ -255,10 +254,12 @@ class GeoGraph:
                     temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1] if x != min_edge]
                     for i in temp_con_edge_vertex1:
                         temp_edge.remove_con_edge(i, vertex1)
+                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex1)
                 else:
                     temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1]]
                     for i in temp_con_edge_vertex1:
                         temp_edge.remove_con_edge(i, vertex1)
+                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex1)
             if len(temp_con_edge[vertex2]) != 0:
                 delta_angle_vertex2 = delta_angle[vertex2]
                 # 查找变化角最小,且<pi/6的边
@@ -269,11 +270,13 @@ class GeoGraph:
                     temp_con_edge_vertex2 = [x for x in temp_con_edge[vertex2] if x != min_edge]
                     for i in temp_con_edge_vertex2:
                         temp_edge.remove_con_edge(i, vertex2)
+                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex2)
                 else:
                     """相邻边全部删除"""
                     temp_con_edge_vertex2 = [x for x in temp_con_edge[vertex2]]
                     for i in temp_con_edge_vertex2:
                         temp_edge.remove_con_edge(i, vertex2)
+                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex2)
 
     '''求和'''
 
