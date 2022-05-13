@@ -13,7 +13,7 @@ GeoVertex Class
 
 class GeoEdge:
     # 相邻的边 {v1: [edge1, edge2, ...], v2: [edge3, edge4, ...]}
-    __conEdge: 'dict[GeoVertex, list[GeoEdge]]'
+    __conEdge: dict
     __id: int  # 唯一标识符 v_id
     # 该边的属性 {'fclass': 'highway', 'name': '公路', ...}
     __edgeAttribute: dict
@@ -35,9 +35,10 @@ class GeoEdge:
         if edge != self:
             if edge not in self.__conEdge[vertex]:
                 self.__conEdge[vertex].append(edge)
-                # 增加相邻变化角
-                self.__deltaAngle[vertex].append(GeoEdge.calculate_angle(
-                    self.__coord, edge.get_coord()))
+                if self.__coord:
+                    # 增加相邻变化角
+                    self.__deltaAngle[vertex].append(GeoEdge.calculate_angle(
+                        self.__coord, edge.get_coord()))
                 # 再调用一次
                 edge.add_con_edge(self, vertex)
 
@@ -45,15 +46,17 @@ class GeoEdge:
 
     def remove_con_edge(self, edge: 'GeoEdge', vertex: GeoVertex) -> None:
         if edge in self.__conEdge[vertex]:
-            del self.__deltaAngle[vertex][self.__conEdge[vertex].index(edge)]
+            if self.__deltaAngle[vertex]:
+                del self.__deltaAngle[vertex][self.__conEdge[vertex].index(edge)]
             self.__conEdge[vertex].remove(edge)
         if self in edge.__conEdge[vertex]:
-            del edge.__deltaAngle[vertex][edge.__conEdge[vertex].index(self)]
+            if edge.__deltaAngle[vertex]:
+                del edge.__deltaAngle[vertex][edge.__conEdge[vertex].index(self)]
             edge.__conEdge[vertex].remove(self)
 
     '''这些都是私有变量的设置方法 set与get'''
 
-    def get_con_edge(self) -> 'dict[GeoVertex, list[GeoEdge]]':
+    def get_con_edge(self) -> dict:
         return self.__conEdge
 
     def get_id(self) -> int:

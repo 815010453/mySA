@@ -78,30 +78,39 @@ class GeoGraph:
     def get_id(self) -> str:
         return self.__id
 
-    def set_id(self, id: str) -> None:
-        self.__id = id
+    def set_id(self, g_id: str) -> None:
+        self.__id = g_id
 
     '''添加节点'''
 
-    def add_vertex(self, id: int, geo_vertex: GeoVertex) -> None:
-        self.__vertices[id] = geo_vertex
+    def add_vertex(self, geo_vertex: GeoVertex) -> None:
+        self.__vertices[geo_vertex.get_id()] = geo_vertex
 
     '''删除节点'''
 
     def remove_vertex_v(self, geo_vertex: GeoVertex) -> None:
-        id = geo_vertex.get_id()
-        del self.__vertices[id]
+        v_id = geo_vertex.get_id()
+        del self.__vertices[v_id]
 
     '''图中边的添加与删除'''
 
-    def add_edge(self, vertex_a: GeoVertex, vertex_b: GeoVertex, edge: GeoEdge) -> None:
-        # 添加相邻关系
-        vertex_a.add_con_vertex(vertex_b, edge)
+    def add_edge(self, edge: GeoEdge) -> None:
+        vertices = list(edge.get_con_edge().keys())
         self.__edges[edge.get_id()] = edge
+        # 添加相邻关系
+        if len(vertices) == 2:
+            vertices[0].add_con_vertex(vertices[1], edge)
+        elif len(vertices) == 1:
+            vertices[0].add_con_vertex(vertices[0], edge)
 
-    def remove_edge(self, vertex_a: GeoVertex, vertex_b: GeoVertex, edge: GeoEdge) -> None:
-        vertex_a.remove_con_vertex(vertex_b, edge)
+    def remove_edge(self, edge: GeoEdge) -> None:
+        vertices = list(edge.get_con_edge().keys())
         del self.__edges[edge.get_id()]
+        # 删除相邻关系
+        if len(vertices) == 2:
+            vertices[0].remove_con_vertex(vertices[1], edge)
+        elif len(vertices) == 1:
+            vertices[0].remove_con_vertex(vertices[0], edge)
 
     '''通过节点id查找节点'''
 
@@ -155,7 +164,7 @@ class GeoGraph:
                     return res_path[::-1]
             if len(open_list) == 0:
                 # failure
-                return None
+                return []
             # get first geo_vertex
             next_vertex = open_list[0]
 
@@ -219,7 +228,7 @@ class GeoGraph:
     def reconstruct_edge_min_delta_angle(self) -> None:
         key_id = self.__edges.keys()
         for e_id in key_id:
-            if e_id == 14473:
+            if e_id == 16833:
                 print('111')
             temp_edge: GeoEdge = self.__edges[e_id]
             temp_con_edge = temp_edge.get_con_edge()
@@ -231,18 +240,14 @@ class GeoGraph:
             [vertex1, vertex2] = temp_con_edge.keys()
             """fclass相等的边才能进行连接判断"""
             fclass: str = temp_edge.get_edge_att()['fclass']
-            temp_con_edge[vertex1] = [x for x in temp_con_edge[vertex1]
-                                      if x.get_edge_att()['fclass'] == fclass]
-            temp_con_edge[vertex2] = [x for x in temp_con_edge[vertex2]
-                                      if x.get_edge_att()['fclass'] == fclass]
-            # 重新计算变化角
-            angle_v1 = []
-            for x in temp_con_edge[vertex1]:
-                angle_v1.append(GeoEdge.calculate_angle(x.get_coord(), temp_edge.get_coord()))
-            angle_v2 = []
-            for x in temp_con_edge[vertex2]:
-                angle_v2.append(GeoEdge.calculate_angle(x.get_coord(), temp_edge.get_coord()))
-            temp_edge.set_delta_angle({vertex1: angle_v1, vertex2: angle_v2})
+            fclass_con_edge = {vertex1: [x for x in temp_con_edge[vertex1]
+                                         if x.get_edge_att()['fclass'] != fclass],
+                               vertex2: [x for x in temp_con_edge[vertex2]
+                                         if x.get_edge_att()['fclass'] != fclass]}
+            for i in fclass_con_edge[vertex1]:
+                temp_edge.remove_con_edge(i, vertex1)
+            for i in fclass_con_edge[vertex2]:
+                temp_edge.remove_con_edge(i, vertex2)
             delta_angle = temp_edge.get_delta_angle()
             # == 0的情况是端点，不做处理
             if len(temp_con_edge[vertex1]) != 0:
@@ -254,12 +259,10 @@ class GeoGraph:
                     temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1] if x != min_edge]
                     for i in temp_con_edge_vertex1:
                         temp_edge.remove_con_edge(i, vertex1)
-                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex1)
                 else:
                     temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1]]
                     for i in temp_con_edge_vertex1:
                         temp_edge.remove_con_edge(i, vertex1)
-                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex1)
             if len(temp_con_edge[vertex2]) != 0:
                 delta_angle_vertex2 = delta_angle[vertex2]
                 # 查找变化角最小,且<pi/6的边
@@ -270,13 +273,11 @@ class GeoGraph:
                     temp_con_edge_vertex2 = [x for x in temp_con_edge[vertex2] if x != min_edge]
                     for i in temp_con_edge_vertex2:
                         temp_edge.remove_con_edge(i, vertex2)
-                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex2)
                 else:
                     """相邻边全部删除"""
                     temp_con_edge_vertex2 = [x for x in temp_con_edge[vertex2]]
                     for i in temp_con_edge_vertex2:
                         temp_edge.remove_con_edge(i, vertex2)
-                        self.__edges[i.get_id()].remove_con_edge(temp_edge, vertex2)
 
     '''求和'''
 
@@ -303,12 +304,13 @@ class GeoGraph:
     def draw_geograph(self, out_path: str = '') -> None:
         """利用pyshp画图"""
         # 字段
-        fields: list[str] = []
+        fields: list = []
         for e_id in self.__edges.keys():
             fields = list(self.__edges[e_id].get_edge_att().keys())
             break
         print(fields)
         '''
+        # 写字段
         w = shapefile.Writer(out_path, shapeType=3, encoding='utf-8')
         for i in list(fields):
             if i == 'coord':
@@ -319,4 +321,3 @@ class GeoGraph:
                 w.field(i, 'C')
         '''
         return None
-

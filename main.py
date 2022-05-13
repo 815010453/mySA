@@ -30,9 +30,9 @@ def init_graph(node_path, edge_path, graph_name) -> GeoGraph:
             if count % 100000 == 0:
                 print(temp_dict)
             # 通过id和坐标构建该点
-            temp = GeoVertex(id=temp_dict['id'], coord=nodeFile.shape(
+            temp = GeoVertex(v_id=temp_dict['id'], coord=nodeFile.shape(
                 count).points, att=temp_dict)
-            geo_graph.add_vertex(id=temp_dict['id'], geo_vertex=temp)
+            geo_graph.add_vertex(geo_vertex=temp)
             count += 1
     '''构建点与点之间的相邻关系以及构建边'''
     with shapefile.Reader(edge_path, encoding='utf-8') as edgeFile:
@@ -57,7 +57,7 @@ def init_graph(node_path, edge_path, graph_name) -> GeoGraph:
             temp_edge = GeoEdge(e_id=temp_dict['keyId'], coord=edgeFile.shape(
                 count).points, edge_att=temp_dict, vertex_a=vertex_a, vertex_b=vertex_b)
             '''在图中添加该边'''
-            geo_graph.add_edge(vertex_a, vertex_b, temp_edge)
+            geo_graph.add_edge(temp_edge)
             count += 1
     # 通过最小变化角重建该图边的相邻关系
     geo_graph.reconstruct_edge_min_delta_angle()
@@ -90,11 +90,6 @@ if __name__ == '__main__':
     print(geoGraph.find_edge(vertex_a, vertex_b))
     print(geoGraph.findpath_bfs(vertex_a, vertex_C))
     '''
-    vertex_A = geoGraph.find_vertex(312)
-    print('A, coord:', vertex_A.get_coord())
-    print('A, 节点:', vertex_A.get_node_att())
-    print('A, 相邻点:', vertex_A.get_con_vertex())
-    print('A, 相邻边', vertex_A.get_con_edge())
     edge_A = geoGraph.find_edge_id(483)
     edge_B = geoGraph.find_edge_id(16833)
     edge_C = geoGraph.find_edge_id(16836)

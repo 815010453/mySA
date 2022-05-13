@@ -7,7 +7,7 @@ GeoVertex Class
 """
 
 
-class GeoVertex():
+class GeoVertex:
     # 定义私有变量
     __conVertex: 'list[GeoVertex]'  # 相邻点[vertex1, vertex2, ...]
     __id: int  # 唯一标识符 keyid
@@ -15,35 +15,35 @@ class GeoVertex():
     __nodeAttributes: dict  # 节点属性{'x':12315,'y':21546,...}
     __conEdge: list  # 经过它的边 与相邻点对应 [edge1, edge2, ...]
 
-    def __init__(self, id: int, att: dict = {}, coord: 'list[float]'  = []) -> None:
+    def __init__(self, v_id: int, att: dict = {}, coord: 'list[float]'  = []) -> None:
         self.__conVertex = []
-        self.__id = id
+        self.__id = v_id
         self.__coord = coord
         self.__nodeAttributes = att
         self.__conEdge = []
 
     '''添加相邻的节点'''
 
-    def add_con_vertex(self, vertex: 'GeoVertex', geoEdge) -> None:
+    def add_con_vertex(self, vertex: 'GeoVertex', geo_edge) -> None:
         if vertex != self and vertex not in self.__conVertex:
             # 添加相邻点
             self.__conVertex.append(vertex)
-        if geoEdge not in self.__conEdge:
+        if geo_edge not in self.__conEdge:
             # 添加相邻边
-            self.__conEdge.append(geoEdge)
-        if len(self.__conEdge) > 1:
+            self.__conEdge.append(geo_edge)
+        if self.__conEdge:
             # 添加边的相邻关系
             for e in self.__conEdge:
-                geoEdge.add_con_edge(e, self)
+                geo_edge.add_con_edge(e, self)
         # 再调用一次相邻点添加
         if vertex != self and self not in vertex.__conVertex:
             vertex.__conVertex.append(self)
-        if vertex not in vertex.__conEdge:
-            vertex.__conEdge.append(geoEdge)
-        if len(vertex.__conEdge) > 1:
+        if geo_edge not in vertex.__conEdge:
+            vertex.__conEdge.append(geo_edge)
+        if vertex.__conEdge:
             # 添加边的相邻关系
             for e in vertex.__conEdge:
-                geoEdge.add_con_edge(e, vertex)
+                geo_edge.add_con_edge(e, vertex)
 
     '''删除相邻的节点'''
 
@@ -51,10 +51,23 @@ class GeoVertex():
         if vertex in self.__conVertex:
             # 删除相邻点
             self.__conVertex.remove(vertex)
+        if edge in self.__conEdge:
             # 删除相邻边
             self.__conEdge.remove(edge)
-            # 再调用一次相邻点删除
-            vertex.remove_con_vertex(self, edge)
+        if self.__conEdge:
+            # 删除边的相邻关系
+            for e in self.__conEdge:
+                edge.remove_con_edge(e, self)
+        # 再调用一次相邻点删除
+        if self in vertex.__conVertex:
+            vertex.__conVertex.remove(self)
+        if edge in vertex.__conEdge:
+            vertex.__conEdge.remove(edge)
+        if vertex.__conEdge:
+            # 删除边的相邻关系
+            for e in vertex.__conEdge:
+                edge.remove_con_edge(e, vertex)
+
 
     '''
     这些都是私有变量的设置方法 set与get
