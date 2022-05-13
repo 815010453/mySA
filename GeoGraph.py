@@ -228,8 +228,6 @@ class GeoGraph:
     def reconstruct_edge_min_delta_angle(self) -> None:
         key_id = self.__edges.keys()
         for e_id in key_id:
-            if e_id == 16833:
-                print('111')
             temp_edge: GeoEdge = self.__edges[e_id]
             temp_con_edge = temp_edge.get_con_edge()
             # 这种环路比较特殊 需要特殊处理
@@ -249,8 +247,14 @@ class GeoGraph:
             for i in fclass_con_edge[vertex2]:
                 temp_edge.remove_con_edge(i, vertex2)
             delta_angle = temp_edge.get_delta_angle()
+            if len(temp_con_edge[vertex1]) == 1:
+                # 判断相邻的是不是环路 如果是 则不计算变化角
+                if len(temp_con_edge[vertex1][0].get_con_edge().keys()) != 1:
+                    delta_angle_vertex1 = delta_angle[vertex1][0]
+                    if abs(delta_angle_vertex1) >= np.pi / 6:
+                        temp_edge.remove_con_edge(temp_con_edge[vertex1][0], vertex1)
             # == 0的情况是端点，不做处理
-            if len(temp_con_edge[vertex1]) != 0:
+            elif len(temp_con_edge[vertex1]) != 0:
                 delta_angle_vertex1 = delta_angle[vertex1]
                 # 查找变化角最小,且<pi/6的边
                 min_angle = min(delta_angle_vertex1)
@@ -263,7 +267,13 @@ class GeoGraph:
                     temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1]]
                     for i in temp_con_edge_vertex1:
                         temp_edge.remove_con_edge(i, vertex1)
-            if len(temp_con_edge[vertex2]) != 0:
+            if len(temp_con_edge[vertex2]) == 1:
+                # 判断相邻的是不是环路 如果是 则不计算变化角
+                if len(temp_con_edge[vertex2][0].get_con_edge().keys()) != 1:
+                    delta_angle_vertex2 = delta_angle[vertex2][0]
+                    if abs(delta_angle_vertex2) >= np.pi / 6:
+                        temp_edge.remove_con_edge(temp_con_edge[vertex2][0], vertex2)
+            elif len(temp_con_edge[vertex2]) != 0:
                 delta_angle_vertex2 = delta_angle[vertex2]
                 # 查找变化角最小,且<pi/6的边
                 min_angle = min(delta_angle_vertex2)

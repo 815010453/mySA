@@ -90,9 +90,9 @@ if __name__ == '__main__':
     print(geoGraph.find_edge(vertex_a, vertex_b))
     print(geoGraph.findpath_bfs(vertex_a, vertex_C))
     '''
-    edge_A = geoGraph.find_edge_id(483)
-    edge_B = geoGraph.find_edge_id(16833)
-    edge_C = geoGraph.find_edge_id(16836)
+    edge_A = geoGraph.find_edge_id(484)
+    edge_B = geoGraph.find_edge_id(485)
+    # edge_C = geoGraph.find_edge_id(16836)
 
     print('A, e_id:', edge_A.get_id())
     print('A, coord:', edge_A.get_coord())
@@ -105,14 +105,14 @@ if __name__ == '__main__':
     print('B, 边:', edge_B.get_edge_att())
     print('B, 相邻边', edge_B.get_con_edge())
     print(edge_B.get_delta_angle())
-
+    '''
     print('C, e_id:', edge_C.get_id())
     print('C, coord:', edge_C.get_coord())
     print('C, 边:', edge_C.get_edge_att())
     print('C, 相邻边', edge_C.get_con_edge())
     print(edge_C.get_delta_angle())
 
-'''
+
     deltaAngleGeoGraph=GeoGraph.constructGraph_deltaAngle(geoGraph)
 
     vertex_a = deltaAngleGeoGraph.find_vertex(281)
