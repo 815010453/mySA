@@ -72,8 +72,11 @@ if __name__ == '__main__':
     geoGraph = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
                           'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
 
+    time_m = datetime.datetime.now()
+    print('构建花费时间:', (time_m - time_s).total_seconds(), '秒')
+    geoGraph.draw_geograph('out/TW_road.shp')
     time_e = datetime.datetime.now()
-    print('构建花费时间:', (time_e - time_s).total_seconds(), '秒')
+    print('绘制花费时间:', (time_e - time_m).total_seconds(), '秒')
     '''
     vertex_a = geoGraph.find_vertex(1)
     vertex_b = geoGraph.find_vertex(2871)
@@ -89,7 +92,7 @@ if __name__ == '__main__':
 
     print(geoGraph.find_edge(vertex_a, vertex_b))
     print(geoGraph.findpath_bfs(vertex_a, vertex_C))
-    '''
+
     edge_A = geoGraph.find_edge_id(484)
     edge_B = geoGraph.find_edge_id(485)
     # edge_C = geoGraph.find_edge_id(16836)
@@ -105,7 +108,6 @@ if __name__ == '__main__':
     print('B, 边:', edge_B.get_edge_att())
     print('B, 相邻边', edge_B.get_con_edge())
     print(edge_B.get_delta_angle())
-    '''
     print('C, e_id:', edge_C.get_id())
     print('C, coord:', edge_C.get_coord())
     print('C, 边:', edge_C.get_edge_att())
@@ -132,3 +134,4 @@ if __name__ == '__main__':
     print(deltaAngleGeoGraph.find_all_path(vertex_a,vertex_C))
     print(deltaAngleGeoGraph.draw_geograph())
 '''
+    geoGraph.draw_geograph('')
