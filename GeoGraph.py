@@ -411,6 +411,7 @@ class GeoGraph:
                     if len(list(next_edge.get_con_edge().keys())) == 1:
                         # 它是环路且是孤边
                         if not next_edge.get_con_edge()[next_vertex]:
+                            to_id = from_id
                             break
                         else:
                             next_edge = next_edge.get_con_edge()[next_vertex][0]
