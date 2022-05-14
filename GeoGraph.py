@@ -346,10 +346,8 @@ class GeoGraph:
             if flag_edge[eId]:
                 continue
             edge: GeoEdge = self.__edges[eId]
-            flag_circle_road = False
             # 它是环路
             if len(list(edge.get_con_edge().keys())) == 1:
-                flag_circle_road = True
                 next_edge = edge
                 next_vertex: GeoVertex = list(next_edge.get_con_edge().keys())[0]
                 # 这条线路的id
@@ -358,11 +356,13 @@ class GeoGraph:
                 road_record = []
                 # 这条线路的坐标
                 road_coord = []
+                # 循环数
+                count_while = 0
                 # 找到起始节点
                 from_id = list(edge.get_con_edge().keys())[0].get_id()
                 # 没到下一个环路或端点就一直循环
                 while True:
-                    flag_edge[next_edge.get_id()] = True
+                    count_while += 1
                     # 当前路段的属性
                     temp_road_record = []
                     count_line += 1
@@ -381,51 +381,38 @@ class GeoGraph:
                     road_record.append(temp_road_record)
                     # 坐标
                     road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
-                    # 找到下一条边
-                    if flag_circle_road:
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-                    else:
-                        next_vertices = list(next_edge.get_con_edge().keys()).remove(next_vertex)
-                        next_vertex = next_vertices[0]
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-                    # 下个边是环路
-                    if len(next_edge.get_con_edge().keys()) == 1:
-                        # 找到终止节点
-                        to_id = list(next_edge.get_con_edge().keys())[0].get_id()
-                        break
-                    # 下个边是端点
-                    elif (not list(next_edge.get_con_edge().values())[0] and list(next_edge.get_con_edge().values())[
-                        1]) or (not list(next_edge.get_con_edge().values())[1]
-                                and list(next_edge.get_con_edge().values())[0]):
-                        # 终止节点
-                        if list(next_edge.get_con_edge().values())[0]:
+                    # next_edge不是起始边
+                    if count_while != 1:
+                        # next_edge是环路 则终止while
+                        if len(next_edge.get_con_edge().keys()) == 1:
+                            # 找到终止节点
                             to_id = list(next_edge.get_con_edge().keys())[0].get_id()
+                            break
+                        # next_edge是端点 则终止while
+                        elif (not list(next_edge.get_con_edge().values())[0] and list(next_edge.get_con_edge().values())[
+                            1]) or (not list(next_edge.get_con_edge().values())[1]
+                                    and list(next_edge.get_con_edge().values())[0]):
+                            # 终止节点
+                            if list(next_edge.get_con_edge().values())[0]:
+                                to_id = list(next_edge.get_con_edge().keys())[0].get_id()
+                            else:
+                                to_id = list(next_edge.get_con_edge().keys())[1].get_id()
+                            break
+                    # 否则找到下一个next_edge
+                    # 它是环路
+                    if len(list(next_edge.get_con_edge().keys())) == 1:
+                        # 它是环路且是孤边
+                        if not next_edge.get_con_edge()[next_vertex]:
+                            break
                         else:
-                            to_id = list(next_edge.get_con_edge().keys())[1].get_id()
-                        break
-                    # 下个边既不是环路也不是端点，是中间边
+                            next_edge = next_edge.get_con_edge()[next_vertex][0]
                     else:
-                        flag_circle_road = False
-                # 再把最后一条边添加进来
-                flag_edge[next_edge.get_id()] = True
-                # 当前路段的属性
-                temp_road_record = []
-                count_line += 1
-                for t in fields:
-                    if t == 'from_' or t == 'to':
-                        temp_road_record.append(int(next_edge.get_edge_att()[t]))
-                    elif t == 'osmid' or t == 'keyId':
-                        continue
-                    elif t == '包含的路段id':
-                        temp_road_record.append(int(next_edge.get_edge_att()['keyId']))
-                    elif t == 'id':
-                        temp_road_record.append(count_road)
-                    else:
-                        temp_road_record.append(next_edge.get_edge_att()[t])
-                # 添加进总线路属性中
-                road_record.append(temp_road_record)
-                # 坐标
-                road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
+                        next_vertices = list(next_edge.get_con_edge().keys())
+                        if next_vertex == next_vertices[0]:
+                            next_vertex = next_vertices[1]
+                        else:
+                            next_vertex = next_vertices[0]
+                        next_edge = next_edge.get_con_edge()[next_vertex][0]
                 # 对总线路属性进行整理 保留出现次数最多的字符串 求和等
                 road_record = list(map(list, zip(*road_record)))
                 final_record = []
@@ -448,9 +435,9 @@ class GeoGraph:
                     # 否则获取出现次数最多的字符串
                     else:
                         final_record.append(GeoGraph.get_most_times_value(rec))
+                # 写这条线路
                 w.record(*final_record)
                 w.line(road_coord)
-                print('处理了', count_line, '条路段，生成', count_road, '条路')
             # 它是孤边 edge.__conEdge = {v1: [], v2: []}
             elif not list(edge.get_con_edge().values())[0] and not list(edge.get_con_edge().values())[1]:
                 flag_edge[eId] = True
@@ -473,19 +460,19 @@ class GeoGraph:
                 # 画这条线路
                 w.record(*road_record)  # 属性
                 w.line([GeoEdge.mercator_tolonlat(edge.get_coord())])  # 坐标
-                print('处理了', count_line, '条路段，生成', count_road, '条线路')
 
             # 它是端点 edge.__conEdge = {v1: [e1, ...], v2: []} or edge.__conEdge = {v1: [], v2: [e1, ...]}
             elif (not list(edge.get_con_edge().values())[0] and list(edge.get_con_edge().values())[1]) or \
                     (not list(edge.get_con_edge().values())[1] and list(edge.get_con_edge().values())[0]):
                 next_edge = edge
-                print(next_edge)
                 # 这条线路的id
                 count_road += 1
                 # 这条线路的属性
                 road_record = []
                 # 这条线路的坐标
                 road_coord = []
+                # while循环计数
+                count_while = 0
                 # 找到起始节点
                 if list(next_edge.get_con_edge().values())[0]:
                     from_id = list(next_edge.get_con_edge().keys())[0].get_id()
@@ -495,6 +482,7 @@ class GeoGraph:
                     next_vertex = list(next_edge.get_con_edge().keys())[0]
                 # 没到端点或环路就一直循环
                 while True:
+                    count_while += 1
                     flag_edge[next_edge.get_id()] = True
                     # 当前路段的属性
                     temp_road_record = []
@@ -514,46 +502,34 @@ class GeoGraph:
                     road_record.append(temp_road_record)
                     # 坐标
                     road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
-                    # 找到下一条边
-                    next_vertices = list(next_edge.get_con_edge().keys()).remove(next_vertex)
-                    print(next_vertices)
-                    next_vertex = next_vertices[0]
-                    next_edge = next_edge.get_con_edge()[next_vertex][0]
-                    # 下个边是环路
+                    # next_edge不是起始边
+                    if count_while != 1:
+                        # next_edge是环路 则终止while
+                        if len(next_edge.get_con_edge().keys()) == 1:
+                            # 找到终止节点
+                            to_id = list(next_edge.get_con_edge().keys())[0].get_id()
+                            break
+                        # next_edge是端点 则终止while
+                        elif (not list(next_edge.get_con_edge().values())[0] and
+                              list(next_edge.get_con_edge().values())[
+                                  1]) or (not list(next_edge.get_con_edge().values())[1]
+                                          and list(next_edge.get_con_edge().values())[0]):
+                            # 找到终止节点
+                            if list(next_edge.get_con_edge().values())[0]:
+                                to_id = list(next_edge.get_con_edge().keys())[0].get_id()
+                            else:
+                                to_id = list(next_edge.get_con_edge().keys())[1].get_id()
+                            break
+                    # next_edge即不是起始边也不是终止边，则找到下一个next_edge
                     if len(list(next_edge.get_con_edge().keys())) == 1:
-                        # 找到终止节点
-                        to_id = list(next_edge.get_con_edge().keys())[0]
-                        break
-                    # 下个边是端点
-                    elif (not list(next_edge.get_con_edge().values())[0] and list(next_edge.get_con_edge().values())[
-                        1]) or (not list(next_edge.get_con_edge().values())[1]
-                                and list(next_edge.get_con_edge().values())[0]):
-                        # 终止节点
-                        if list(next_edge.get_con_edge().values())[0]:
-                            to_id = list(next_edge.get_con_edge().keys())[1]
-                        else:
-                            to_id = list(next_edge.get_con_edge().keys())[0]
-                        break
-                # 再把最后一条边添加进来
-                flag_edge[next_edge.get_id()] = True
-                # 当前路段的属性
-                temp_road_record = []
-                count_line += 1
-                for t in fields:
-                    if t == 'from_' or t == 'to':
-                        temp_road_record.append(int(next_edge.get_edge_att()[t]))
-                    elif t == 'osmid' or t == 'keyId':
-                        continue
-                    elif t == '包含的路段id':
-                        temp_road_record.append(int(next_edge.get_edge_att()['keyId']))
-                    elif t == 'id':
-                        temp_road_record.append(count_road)
+                        next_edge = next_edge.get_con_edge()[next_vertex][0]
                     else:
-                        temp_road_record.append(next_edge.get_edge_att()[t])
-                # 添加进总线路属性中
-                road_record.append(temp_road_record)
-                # 坐标
-                road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
+                        next_vertices = list(next_edge.get_con_edge().keys())
+                        if next_vertex == next_vertices[0]:
+                            next_vertex = next_vertices[1]
+                        else:
+                            next_vertex = next_vertices[0]
+                        next_edge = next_edge.get_con_edge()[next_vertex][0]
                 # 对总线路属性进行整理 保留出现次数最多的字符串 求和等
                 road_record = list(map(list, zip(*road_record)))
                 final_record = []
@@ -576,9 +552,80 @@ class GeoGraph:
                     # 否则获取出现次数最多的字符串
                     else:
                         final_record.append(GeoGraph.get_most_times_value(rec))
+                # 写这条线路
                 w.record(*final_record)
                 w.line(road_coord)
-                print('处理了', count_line, '条路段，生成', count_road, '条路')
+        # 现在都是由不是端点的路组成的新的环路
+        for eId in self.__edges.keys():
+            if flag_edge[eId]:
+                continue
+            edge: GeoEdge = self.__edges[eId]
+            next_edge = edge
+            next_vertex = list(next_edge.get_con_edge().keys())[0]
+            from_id = to_id = next_vertex.get_id()
+            # 这条线路的id
+            count_road += 1
+            # 这条线路的属性
+            road_record = []
+            # 这条线路的坐标
+            road_coord = []
+            while True:
+                flag_edge[next_edge.get_id()] = True
+                # 当前路段的属性
+                temp_road_record = []
+                count_line += 1
+                print(next_edge.get_id())
+                for t in fields:
+                    if t == 'from_' or t == 'to':
+                        temp_road_record.append(int(next_edge.get_edge_att()[t]))
+                    elif t == 'osmid' or t == 'keyId':
+                        continue
+                    elif t == '包含的路段id':
+                        temp_road_record.append(int(next_edge.get_edge_att()['keyId']))
+                    elif t == 'id':
+                        temp_road_record.append(count_road)
+                    else:
+                        temp_road_record.append(next_edge.get_edge_att()[t])
+                # 添加进总线路属性中
+                road_record.append(temp_road_record)
+                # 坐标
+                road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
+                next_vertices = list(next_edge.get_con_edge().keys())
+                # 找下一个nex_edge
+                if next_vertex == next_vertices[0]:
+                    next_vertex = next_vertices[1]
+                else:
+                    next_vertex = next_vertices[0]
+                next_edge = next_edge.get_con_edge()[next_vertex][0]
+                # 如果该next_edge写过了 则终止while循环
+                if flag_edge[next_edge.get_id()]:
+                    break
+            # 对总线路属性进行整理 保留出现次数最多的字符串 求和等
+            road_record = list(map(list, zip(*road_record)))
+            final_record = []
+            for index, rec in enumerate(road_record):
+                # 求和字段
+                if fields[index] == 'length':
+                    final_record.append(GeoGraph.get_sum_value(rec))
+                # 该线路id
+                elif fields[index] == 'id':
+                    final_record.append(count_road)
+                # 起始节点
+                elif fields[index] == 'from_':
+                    final_record.append(int(from_id))
+                # 终止节点
+                elif fields[index] == 'to':
+                    final_record.append(int(to_id))
+                # 包含的路段id
+                elif fields[index] == '包含的路段id':
+                    final_record.append(rec)
+                # 否则获取出现次数最多的字符串
+                else:
+                    final_record.append(GeoGraph.get_most_times_value(rec))
+            # 写这条线路
+            w.record(*final_record)
+            w.line(road_coord)
+        print('处理了', count_line, '条路段，生成', count_road, '条路')
         w.close()
         # 写投影信息
         proj = osr.SpatialReference()
