@@ -363,6 +363,7 @@ class GeoGraph:
                 # 没到下一个环路或端点就一直循环
                 while True:
                     count_while += 1
+                    flag_edge[next_edge.get_id()] = True
                     # 当前路段的属性
                     temp_road_record = []
                     count_line += 1
@@ -574,7 +575,6 @@ class GeoGraph:
                 # 当前路段的属性
                 temp_road_record = []
                 count_line += 1
-                print(next_edge.get_id())
                 for t in fields:
                     if t == 'from_' or t == 'to':
                         temp_road_record.append(int(next_edge.get_edge_att()[t]))

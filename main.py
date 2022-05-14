@@ -77,7 +77,7 @@ if __name__ == '__main__':
     geoGraph.draw_geograph('out/TW_road.shp')
     time_e = datetime.datetime.now()
     print('绘制花费时间:', (time_e - time_m).total_seconds(), '秒')
-    edge_A = geoGraph.find_edge_id(150)
+    edge_A = geoGraph.find_edge_id(16836)
     edge_B = geoGraph.find_edge_id(151)
     edge_C = geoGraph.find_edge_id(7610)
     print('A, e_id:', edge_A.get_id())
