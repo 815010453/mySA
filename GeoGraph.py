@@ -291,6 +291,8 @@ class GeoGraph:
 
     def reconstruct_edge_SA(self) -> None:
         key_id = self.__edges.keys()
+        """随机构建新的相邻边关系"""
+
     '''求和'''
 
     @staticmethod
