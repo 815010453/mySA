@@ -287,6 +287,10 @@ class GeoGraph:
                     for i in temp_con_edge_vertex2:
                         temp_edge.remove_con_edge(i, vertex2)
 
+    """模拟退火算法构建新的相邻边关系"""
+
+    def reconstruct_edge_SA(self) -> None:
+        key_id = self.__edges.keys()
     '''求和'''
 
     @staticmethod
@@ -390,9 +394,10 @@ class GeoGraph:
                             to_id = list(next_edge.get_con_edge().keys())[0].get_id()
                             break
                         # next_edge是端点 则终止while
-                        elif (not list(next_edge.get_con_edge().values())[0] and list(next_edge.get_con_edge().values())[
-                            1]) or (not list(next_edge.get_con_edge().values())[1]
-                                    and list(next_edge.get_con_edge().values())[0]):
+                        elif (not list(next_edge.get_con_edge().values())[0] and
+                              list(next_edge.get_con_edge().values())[
+                                  1]) or (not list(next_edge.get_con_edge().values())[1]
+                                          and list(next_edge.get_con_edge().values())[0]):
                             # 终止节点
                             if list(next_edge.get_con_edge().values())[0]:
                                 to_id = list(next_edge.get_con_edge().keys())[0].get_id()
