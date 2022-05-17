@@ -20,6 +20,7 @@ class GeoEdge:
     # 相邻边的变化角 与相邻边对应 {v1: [0.12314, 0.112, ...], v2: [...]}
     __deltaAngle: 'dict[GeoVertex, list[float]]'
     __coord: 'list[tuple[float]]'  # 该边坐标 [(x1, y1), (x2, y2), ...]
+    __probability: dict  # 概率 代表选中它的相邻边的概率 浮点数 0-1
 
     def __init__(self, e_id: int, vertex_a: GeoVertex, vertex_b: GeoVertex, coord: 'list[tuple[float]]' = [],
                  edge_att: dict = {}) -> None:
@@ -28,6 +29,7 @@ class GeoEdge:
         self.__deltaAngle = {vertex_a: [], vertex_b: []}
         self.__coord = coord
         self.__id = e_id
+        self.__probability = {vertex_a: [], vertex_b: []}
 
     '''添加相邻的边'''
 
@@ -37,8 +39,10 @@ class GeoEdge:
                 self.__conEdge[vertex].append(edge)
                 if self.__coord:
                     # 增加相邻变化角
-                    self.__deltaAngle[vertex].append(GeoEdge.calculate_angle(
-                        self.__coord, edge.get_coord()))
+                    delta_angle = GeoEdge.calculate_angle(self.__coord, edge.get_coord())
+                    self.__deltaAngle[vertex].append(delta_angle)
+                    # 增加选择相邻边的概率
+                    self.__probability[vertex].append((math.pi-delta_angle) / math.pi)
                 # 再调用一次
                 edge.add_con_edge(self, vertex)
 
@@ -48,10 +52,12 @@ class GeoEdge:
         if edge in self.__conEdge[vertex]:
             if self.__deltaAngle[vertex]:
                 del self.__deltaAngle[vertex][self.__conEdge[vertex].index(edge)]
+                del self.__probability[vertex][self.__conEdge[vertex].index(edge)]
             self.__conEdge[vertex].remove(edge)
         if self in edge.__conEdge[vertex]:
             if edge.__deltaAngle[vertex]:
                 del edge.__deltaAngle[vertex][edge.__conEdge[vertex].index(self)]
+                del edge.__probability[vertex][edge.__conEdge[vertex].index(self)]
             edge.__conEdge[vertex].remove(self)
 
     '''这些都是私有变量的设置方法 set与get'''
@@ -71,6 +77,9 @@ class GeoEdge:
     def get_coord(self) -> 'list[tuple[float]]':
         return self.__coord
 
+    def get_probability(self) -> float:
+        return self.__probability
+
     def set_id(self, id: int) -> None:
         self.__id = id
 
@@ -85,6 +94,9 @@ class GeoEdge:
 
     def set_con_edge(self, con_edge: 'list[GeoEdge]', vertex: GeoVertex) -> None:
         self.__conEdge[vertex] = con_edge
+
+    def set_probability(self, pro: float) -> None:
+        self.__probability = pro
 
     def __str__(self) -> str:
         return str(self.__id)

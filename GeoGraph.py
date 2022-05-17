@@ -4,6 +4,7 @@ import numpy as np
 import shapefile  # 使用pyshp
 from osgeo import osr
 import os
+import copy
 
 """
 GeoGraph Class
@@ -289,11 +290,157 @@ class GeoGraph:
 
     """模拟退火算法构建新的相邻边关系"""
 
-    def reconstruct_edge_SA(self) -> None:
-        key_id = self.__edges.keys()
-        """随机构建新的相邻边关系"""
+    def reconstruct_edge_sa(self) -> None:
+        basic_graph = copy.deepcopy(self)  # 深拷贝建立原始相邻边关系
+        loop_count = 0  # 迭代次数
+        t = len(list(self.__edges.keys()))  # 当前温度 = 边数
+        """初始化"""
+        """随机构建新的相邻边关系 边的一个节点仅保留一个相邻边"""
+        for eId in self.__edges.keys():
+            edge = self.__edges[eId]
+            con_edge_dict = edge.get_con_edge()
+            vertices = list(con_edge_dict.keys())
+            for v in vertices:
+                if not con_edge_dict[v] or len(con_edge_dict[v]) == 1:
+                    continue
+                else:
+                    # 该边的这个节点的相邻关系只保留一条相邻边
+                    remove_list = [x for x in con_edge_dict[v] if x != con_edge_dict[v][0]]
+                    # 该边的相邻边的这个节点的相邻关系也只保留该边
+                    remove_list2 = [x for x in con_edge_dict[v][0].get_con_edge()[v] if x != edge]
+                    for e in remove_list:
+                        edge.remove_con_edge(e, v)
+                    for e in remove_list2:
+                        con_edge_dict[v][0].remove_con_edge(e, v)
+        # 目标函数值
+        func_value = self.calculate_cost()
+        while loop_count < 100000:
+            loop_count += 1
+            for eId in self.__edges.keys():
+                edge = self.__edges[eId]
+                con_edge_dict = edge.get_con_edge()
+                vertices = list(con_edge_dict.keys())
 
-    '''求和'''
+    """计算目标函数值"""
+
+    def calculate_cost(self) -> float:
+        # cost
+        cost = 0.0
+        # 判断当前路计算了没
+        flag_edge = {}
+        # 计数 构建的线路数
+        count_road = 0
+        for eId in self.__edges.keys():
+            flag_edge[eId] = False
+        for eId in self.__edges.keys():
+            if flag_edge[eId]:
+                continue
+            edge: GeoEdge = self.__edges[eId]
+            # 它是环路
+            if len(list(edge.get_con_edge().keys())) == 1:
+                next_edge = edge
+                next_vertex: GeoVertex = list(next_edge.get_con_edge().keys())[0]
+                # 线路数+=1
+                count_road += 1
+                # 这条线路的坐标
+                road_coord = []
+                # 循环数
+                count_while = 0
+                # 没到下一个环路或端点就一直循环
+                while True:
+                    count_while += 1
+                    flag_edge[next_edge.get_id()] = True
+                    # 坐标
+                    road_coord.append(next_edge.get_coord())
+                    # next_edge不是起始边
+                    if count_while != 1:
+                        # next_edge是环路 则终止while
+                        if len(next_edge.get_con_edge().keys()) == 1:
+                            road_coord.pop()
+                            break
+                        # next_edge是端点 则终止while
+                        elif (not list(next_edge.get_con_edge().values())[0] and
+                              list(next_edge.get_con_edge().values())[
+                                  1]) or (not list(next_edge.get_con_edge().values())[1]
+                                          and list(next_edge.get_con_edge().values())[0]):
+                            break
+                    # 否则找到下一个next_edge
+                    # 它是环路
+                    if len(list(next_edge.get_con_edge().keys())) == 1:
+                        # 它是环路且是孤边
+                        if not next_edge.get_con_edge()[next_vertex]:
+                            road_coord = []
+                            break
+                        else:
+                            road_coord = []
+                            cost += 10
+                            next_edge = next_edge.get_con_edge()[next_vertex][0]
+                    else:
+                        next_vertices = list(next_edge.get_con_edge().keys())
+                        if next_vertex == next_vertices[0]:
+                            next_vertex = next_vertices[1]
+                        else:
+                            next_vertex = next_vertices[0]
+                        next_edge = next_edge.get_con_edge()[next_vertex][0]
+
+                # 根据coord计算偏移量
+                cost += GeoGraph.get_cost(road_coord)
+            # 它是孤边 edge.__conEdge = {v1: [], v2: []}
+            elif not list(edge.get_con_edge().values())[0] and not list(edge.get_con_edge().values())[1]:
+                flag_edge[eId] = True
+                count_road += 1
+                vertices: GeoVertex = list(edge.get_con_edge().keys())
+                # 它本来就是孤边
+                if not vertices[0].get_con_vertex() and not vertices[1].get_con_vertex():
+                    continue
+                # 我们后来把它分成了孤边
+                else:
+                    cost += GeoGraph.get_cost(edge.get_coord)
+            # 它是端点 edge.__conEdge = {v1: [e1, ...], v2: []} or edge.__conEdge = {v1: [], v2: [e1, ...]}
+            elif (not list(edge.get_con_edge().values())[0] and list(edge.get_con_edge().values())[1]) or \
+                    (not list(edge.get_con_edge().values())[1] and list(edge.get_con_edge().values())[0]):
+                next_edge = edge
+                # 这条线路的id
+                count_road += 1
+                # 这条线路的坐标
+                road_coord = []
+                # while循环计数
+                count_while = 0
+                # 没到端点或环路就一直循环
+                while True:
+                    count_while += 1
+                    flag_edge[next_edge.get_id()] = True
+                    # 坐标
+                    road_coord.append(next_edge.get_coord())
+                    # next_edge不是起始边
+                    if count_while != 1:
+                        # next_edge是环路 则终止while
+                        if len(next_edge.get_con_edge().keys()) == 1:
+                            road_coord.pop()
+                            cost += 10
+                            break
+                        # next_edge是端点 则终止while
+                        elif (not list(next_edge.get_con_edge().values())[0] and
+                              list(next_edge.get_con_edge().values())[
+                                  1]) or (not list(next_edge.get_con_edge().values())[1]
+                                          and list(next_edge.get_con_edge().values())[0]):
+                            break
+                    # next_edge即不是起始边也不是终止边，则找到下一个next_edge
+                    if len(list(next_edge.get_con_edge().keys())) == 1:
+                        next_edge = next_edge.get_con_edge()[next_vertex][0]
+                    else:
+                        next_vertices = list(next_edge.get_con_edge().keys())
+                        if next_vertex == next_vertices[0]:
+                            next_vertex = next_vertices[1]
+                        else:
+                            next_vertex = next_vertices[0]
+                        next_edge = next_edge.get_con_edge()[next_vertex][0]
+                # 对坐标数组求cost
+                cost += GeoGraph.get_cost(road_coord)
+
+        return cost
+
+    '''对数组进行求和'''
 
     @staticmethod
     def get_sum_value(value_str):
@@ -301,6 +448,13 @@ class GeoGraph:
         for item in value_str:
             my_sum = my_sum + item
         return my_sum
+
+    @staticmethod
+    def get_cost(road_coord):
+        cost = 0
+        for coord in road_coord:
+            pass
+        return cost
 
     '''求出现次数最多的字符串'''
 

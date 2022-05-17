@@ -15,7 +15,7 @@ class GeoVertex:
     __nodeAttributes: dict  # 节点属性{'x':12315,'y':21546,...}
     __conEdge: list  # 经过它的边 与相邻点对应 [edge1, edge2, ...]
 
-    def __init__(self, v_id: int, att: dict = {}, coord: 'list[float]'  = []) -> None:
+    def __init__(self, v_id: int, att: dict = {}, coord: 'list[float]' = []) -> None:
         self.__conVertex = []
         self.__id = v_id
         self.__coord = coord
@@ -67,7 +67,6 @@ class GeoVertex:
             # 删除边的相邻关系
             for e in vertex.__conEdge:
                 edge.remove_con_edge(e, vertex)
-
 
     '''
     这些都是私有变量的设置方法 set与get
