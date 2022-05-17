@@ -60,7 +60,8 @@ def init_graph(node_path, edge_path, graph_name) -> GeoGraph:
             geo_graph.add_edge(temp_edge)
             count += 1
     # 通过最小变化角重建该图边的相邻关系
-    geo_graph.reconstruct_edge_min_delta_angle()
+    #  geo_graph.reconstruct_edge_min_delta_angle()
+    geoGraph.reconstruct_edge_sa()
     print(geo_graph.check_graph_simple())
 
     print('construct geo_graph successfully')
@@ -71,7 +72,6 @@ if __name__ == '__main__':
     time_s = datetime.datetime.now()
     geoGraph = init_graph('T_ROAD/Desktop/T_ROAD_NODE_webmerc.shp',
                           'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
-
     time_m = datetime.datetime.now()
     print('构建花费时间:', (time_m - time_s).total_seconds(), '秒')
     geoGraph.draw_geograph('out/TW_road.shp')

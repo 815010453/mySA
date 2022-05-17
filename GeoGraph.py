@@ -314,6 +314,8 @@ class GeoGraph:
                         con_edge_dict[v][0].remove_con_edge(e, v)
         # 目标函数值
         func_value = self.calculate_graph_cost()
+        self = copy.deepcopy(basic_graph)
+        # 开始退火
         while loop_count < 100000:
             loop_count += 1
             for eId in self.__edges.keys():
@@ -373,7 +375,7 @@ class GeoGraph:
                             break
                         else:
                             road_coord = []
-                            cost += 10
+                            cost += 0.1
                             next_edge = next_edge.get_con_edge()[next_vertex][0]
                     else:
                         next_vertices = list(next_edge.get_con_edge().keys())
@@ -422,7 +424,7 @@ class GeoGraph:
                         # next_edge是环路 则终止while
                         if len(next_edge.get_con_edge().keys()) == 1:
                             road_coord.pop()
-                            cost += 10
+                            cost += 0.1
                             break
                         # next_edge是端点 则终止while
                         elif (not list(next_edge.get_con_edge().values())[0] and
@@ -471,7 +473,7 @@ class GeoGraph:
         x0 = temp_coord[0][0]
         y0 = temp_coord[0][1]
         xn = temp_coord[-1][0]
-        yn = temp_coord[-1][0]
+        yn = temp_coord[-1][1]
         # 起点到终点的斜率
         k = (yn - y0) / (xn - x0)
         temp_coord2 = temp_coord[1:]
