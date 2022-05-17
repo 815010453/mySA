@@ -90,8 +90,8 @@ class GeoVertex:
     def set_con_vertex(self, vertices: 'list[GeoVertex]') -> None:
         self.__conVertex = vertices
 
-    def set_id(self, id: int) -> None:
-        self.__id = id
+    def set_id(self, v_id: int) -> None:
+        self.__id = v_id
 
     def set_coord(self, coord: 'list[float]') -> None:
         self.__coord = coord

@@ -77,11 +77,11 @@ class GeoEdge:
     def get_coord(self) -> 'list[tuple[float]]':
         return self.__coord
 
-    def get_probability(self) -> float:
+    def get_probability(self) -> dict:
         return self.__probability
 
-    def set_id(self, id: int) -> None:
-        self.__id = id
+    def set_id(self, e_id: int) -> None:
+        self.__id = e_id
 
     def set_coord(self, coord: 'list[tuple[float]]') -> None:
         self.__coord = coord
@@ -95,7 +95,7 @@ class GeoEdge:
     def set_con_edge(self, con_edge: 'list[GeoEdge]', vertex: GeoVertex) -> None:
         self.__conEdge[vertex] = con_edge
 
-    def set_probability(self, pro: float) -> None:
+    def set_probability(self, pro: dict) -> None:
         self.__probability = pro
 
     def __str__(self) -> str:
@@ -109,7 +109,7 @@ class GeoEdge:
     '''
 
     @staticmethod
-    def calculate_distance(coord1: 'tuple[float]', coord2: 'tuple[float]') -> float:
+    def calculate_distance(coord1: tuple, coord2: tuple) -> float:
         return ((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2) ** 0.5
 
     '''

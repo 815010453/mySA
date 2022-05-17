@@ -313,7 +313,7 @@ class GeoGraph:
                     for e in remove_list2:
                         con_edge_dict[v][0].remove_con_edge(e, v)
         # 目标函数值
-        func_value = self.calculate_cost()
+        func_value = self.calculate_graph_cost()
         while loop_count < 100000:
             loop_count += 1
             for eId in self.__edges.keys():
@@ -323,7 +323,7 @@ class GeoGraph:
 
     """计算目标函数值"""
 
-    def calculate_cost(self) -> float:
+    def calculate_graph_cost(self) -> float:
         # cost
         cost = 0.0
         # 判断当前路计算了没
@@ -389,13 +389,13 @@ class GeoGraph:
             elif not list(edge.get_con_edge().values())[0] and not list(edge.get_con_edge().values())[1]:
                 flag_edge[eId] = True
                 count_road += 1
-                vertices: GeoVertex = list(edge.get_con_edge().keys())
+                vertices = list(edge.get_con_edge().keys())
                 # 它本来就是孤边
                 if not vertices[0].get_con_vertex() and not vertices[1].get_con_vertex():
                     continue
                 # 我们后来把它分成了孤边
                 else:
-                    cost += GeoGraph.get_cost(edge.get_coord)
+                    cost += GeoGraph.get_cost(edge.get_coord())
             # 它是端点 edge.__conEdge = {v1: [e1, ...], v2: []} or edge.__conEdge = {v1: [], v2: [e1, ...]}
             elif (not list(edge.get_con_edge().values())[0] and list(edge.get_con_edge().values())[1]) or \
                     (not list(edge.get_con_edge().values())[1] and list(edge.get_con_edge().values())[0]):
@@ -406,6 +406,11 @@ class GeoGraph:
                 road_coord = []
                 # while循环计数
                 count_while = 0
+                # 找到下一个节点
+                if list(next_edge.get_con_edge().values())[0]:
+                    next_vertex = list(next_edge.get_con_edge().keys())[1]
+                else:
+                    next_vertex = list(next_edge.get_con_edge().keys())[0]
                 # 没到端点或环路就一直循环
                 while True:
                     count_while += 1
@@ -449,11 +454,54 @@ class GeoGraph:
             my_sum = my_sum + item
         return my_sum
 
+    """通过coord计算cost"""
+
     @staticmethod
     def get_cost(road_coord):
-        cost = 0
-        for coord in road_coord:
-            pass
+        coord = road_coord[0]
+        temp_coord = []
+        if isinstance(coord, tuple):
+            # 这是孤边 不必降维
+            temp_coord = road_coord
+        else:
+            # 降维
+            for d in road_coord:
+                for i in d:
+                    temp_coord.append(i)
+        x0 = temp_coord[0][0]
+        y0 = temp_coord[0][1]
+        xn = temp_coord[-1][0]
+        yn = temp_coord[-1][0]
+        # 起点到终点的斜率
+        k = (yn - y0) / (xn - x0)
+        temp_coord2 = temp_coord[1:]
+        temp_coord.pop()
+        # 这条线路面积
+        square = 0.0
+        # 这条线路边长
+        length = 0.0
+        for index, coord in enumerate(temp_coord):
+            # 这时的coord是一个tuple
+            x1 = coord[0]
+            y1 = coord[1]
+            x2 = temp_coord2[index][0]
+            y2 = temp_coord2[index][1]
+            # 计算经过(x1, y1)的直线 y=kx+b1
+            b1 = y1 - k * x1
+            # 计算经过(x2, y2)的直线 y = -1/k*x+b2
+            b2 = y2 + 1 / k * x2
+            # 计算交点
+            x3 = (b2 - b1) / (k + 1 / k)
+            y3 = k * x3 + b1
+            my_coord1 = (x1, y1)
+            my_coord2 = (x2, y2)
+            my_coord3 = (x3, y3)
+            # 第一段边长
+            l1 = GeoEdge.calculate_distance(my_coord1, my_coord3)
+            l2 = GeoEdge.calculate_distance(my_coord2, my_coord3)
+            length += GeoEdge.calculate_distance(my_coord1, my_coord2)
+            square += l1 * l2 / 2
+        cost = square / (length ** 2)  # 路径积分/边长^2
         return cost
 
     '''求出现次数最多的字符串'''
