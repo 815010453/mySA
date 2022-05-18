@@ -1,5 +1,5 @@
 test.py
 .idea
-.gitignore
 T_ROAD
 out
+__pycache__
