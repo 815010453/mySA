@@ -290,38 +290,53 @@ class GeoGraph:
 
     """模拟退火算法构建新的相邻边关系"""
 
-    def reconstruct_edge_sa(self) -> None:
-        basic_graph = copy.deepcopy(self)  # 深拷贝建立原始相邻边关系
-        loop_count = 0  # 迭代次数
-        t = len(list(self.__edges.keys()))  # 当前温度 = 边数
-        """初始化"""
-        """随机构建新的相邻边关系 边的一个节点仅保留一个相邻边"""
-        for eId in self.__edges.keys():
-            edge = self.__edges[eId]
-            con_edge_dict = edge.get_con_edge()
-            vertices = list(con_edge_dict.keys())
-            for v in vertices:
-                if not con_edge_dict[v] or len(con_edge_dict[v]) == 1:
+    @staticmethod
+    def reconstruct_edge_sa(graph: 'GeoGraph') -> None:
+        basic_graph = copy.deepcopy(graph)  # 深拷贝建立原始相邻边关系
+        t = 100  # 初始温度100
+        alpha = 0.95  # 退火速率
+        """
+        马尔科夫链长(为了方便 存储的是{边id: bool} False代表本次迭代没有它) = key个数是边数 算法在马尔可夫链的长度内持续进行产生新解、判断、接受/舍弃的迭代过程
+                    随着t的降低 马尔科夫链链长也会减少
+        """
+        markov_len = {}
+        for eId in list(graph.__edges.keys()):
+            markov_len[eId] = True
+        # 开始退火
+        while t > 1:
+            for eId in markov_len.keys():
+                if not markov_len[eId]:
                     continue
-                else:
-                    # 该边的这个节点的相邻关系只保留一条相邻边
-                    remove_list = [x for x in con_edge_dict[v] if x != con_edge_dict[v][0]]
-                    # 该边的相邻边的这个节点的相邻关系也只保留该边
-                    remove_list2 = [x for x in con_edge_dict[v][0].get_con_edge()[v] if x != edge]
+                edge: GeoEdge = graph.__edges[eId]
+                con_edge_dict = edge.get_con_edge()
+                vertices = list(con_edge_dict.keys())
+                for v in vertices:
+                    if not con_edge_dict[v]:
+                        continue
+                    # 相邻边
+                    con_edge = con_edge_dict[v]
+                    # 概率
+                    pro_list = edge.get_probability()[v]
+                    chose_edge = None
+                    for index, e in enumerate(con_edge):
+                        if np.random.rand() <= pro_list[index]:
+                            # 选中了
+                            chose_edge = e
+                            break
+                    if chose_edge is None:
+                        remove_list = [x for x in con_edge]
+                        remove_list2 = [x for x in con_edge_dict[v][0].get_con_edge()[v]]
+                    else:
+                        remove_list = [x for x in con_edge if x != chose_edge]
+                        remove_list2 = [x for x in con_edge_dict[v][0].get_con_edge()[v] if x != edge]
                     for e in remove_list:
                         edge.remove_con_edge(e, v)
                     for e in remove_list2:
                         con_edge_dict[v][0].remove_con_edge(e, v)
-        # 目标函数值
-        func_value = self.calculate_graph_cost()
-        self = copy.deepcopy(basic_graph)
-        # 开始退火
-        while loop_count < 100000:
-            loop_count += 1
-            for eId in self.__edges.keys():
-                edge = self.__edges[eId]
-                con_edge_dict = edge.get_con_edge()
-                vertices = list(con_edge_dict.keys())
+            last_value = func_value
+            last_count = markov_len
+            markov_len, func_value = graph.calculate_graph_cost()
+            delta_value = func_value - last_value
 
     """计算目标函数值"""
 
@@ -445,7 +460,7 @@ class GeoGraph:
                 # 对坐标数组求cost
                 cost += GeoGraph.get_cost(road_coord)
 
-        return cost
+        return count_road, cost
 
     '''对数组进行求和'''
 
@@ -460,6 +475,8 @@ class GeoGraph:
 
     @staticmethod
     def get_cost(road_coord):
+        if not road_coord:
+            return 0.0
         coord = road_coord[0]
         temp_coord = []
         if isinstance(coord, tuple):
@@ -474,36 +491,159 @@ class GeoGraph:
         y0 = temp_coord[0][1]
         xn = temp_coord[-1][0]
         yn = temp_coord[-1][1]
-        # 起点到终点的斜率
-        k = (yn - y0) / (xn - x0)
-        temp_coord2 = temp_coord[1:]
-        temp_coord.pop()
-        # 这条线路面积
-        square = 0.0
-        # 这条线路边长
-        length = 0.0
-        for index, coord in enumerate(temp_coord):
-            # 这时的coord是一个tuple
-            x1 = coord[0]
-            y1 = coord[1]
-            x2 = temp_coord2[index][0]
-            y2 = temp_coord2[index][1]
-            # 计算经过(x1, y1)的直线 y=kx+b1
-            b1 = y1 - k * x1
-            # 计算经过(x2, y2)的直线 y = -1/k*x+b2
-            b2 = y2 + 1 / k * x2
-            # 计算交点
-            x3 = (b2 - b1) / (k + 1 / k)
-            y3 = k * x3 + b1
-            my_coord1 = (x1, y1)
-            my_coord2 = (x2, y2)
-            my_coord3 = (x3, y3)
-            # 第一段边长
-            l1 = GeoEdge.calculate_distance(my_coord1, my_coord3)
-            l2 = GeoEdge.calculate_distance(my_coord2, my_coord3)
-            length += GeoEdge.calculate_distance(my_coord1, my_coord2)
-            square += l1 * l2 / 2
-        cost = square / (length ** 2)  # 路径积分/边长^2
+        if xn == x0:
+            # 总的直线方程是x=x0 无斜率
+            temp_coord2 = temp_coord[1:]
+            temp_coord.pop()
+            # 这条路线积分
+            square = 0.0
+            # 这条线路边长
+            length = 0.0
+            for index, coord in enumerate(temp_coord):
+                # 这时的coord是一个tuple
+                x1 = coord[0]
+                y1 = coord[1]
+                x2 = temp_coord2[index][0]
+                y2 = temp_coord2[index][1]
+                my_coord1 = (x1, y1)
+                my_coord2 = (x2, y2)
+                length += GeoEdge.calculate_distance(my_coord1, my_coord2)
+                if y2 == y1:
+                    continue
+                if (x1 >= x0 and x2 >= x0) or (x1 <= x0 and x2 <= x0):
+                    # 同边
+                    # 经过(x1, y1)的直线且垂直于x=x0的方程为y=y1
+                    # 经过(x2, y2)的直线且垂直于x=x1的方程为y=y2
+                    # 上底
+                    top_length = abs(x2 - x0)
+                    # 下底
+                    last_length = abs(x1 - x0)
+                    # 高
+                    height = abs(y2 - y1)
+                    # 面积
+                    square += (top_length + last_length) * height / 2
+                else:
+                    # 异边 这条直线一定有斜率
+                    k = y2 - y1 / x2 - x1
+                    b = y1 - k * x1
+                    # 交点y坐标
+                    y = k * x0 + b
+                    height1 = abs(y - y1)
+                    height2 = abs(y - y2)
+                    square += height1 * abs(x1 - x0) / 2 + height2 * abs(x2 - x0)
+            cost = square / (length ** 2)  # cost = 路径积分/边长^2
+        elif yn == y0:
+            # 总的直线方程是y=y0
+            temp_coord2 = temp_coord[1:]
+            temp_coord.pop()
+            # 这条路线积分
+            square = 0.0
+            # 这条线路边长
+            length = 0.0
+            for index, coord in enumerate(temp_coord):
+                # 这时的coord是一个tuple
+                x1 = coord[0]
+                y1 = coord[1]
+                x2 = temp_coord2[index][0]
+                y2 = temp_coord2[index][1]
+                my_coord1 = (x1, y1)
+                my_coord2 = (x2, y2)
+                length += GeoEdge.calculate_distance(my_coord1, my_coord2)
+                if x2 == x1:
+                    continue
+                if (x1 >= x0 and x2 >= x0) or (x1 <= x0 and x2 <= x0):
+                    # 同边
+                    # 经过(x1, y1)的直线且垂直于y=y0的方程为x=x1
+                    # 经过(x2, y2)的直线且垂直于y=y1的方程为x=x2
+                    # 上底
+                    top_length = abs(y2 - y0)
+                    # 下底
+                    last_length = abs(y1 - y0)
+                    # 高
+                    height = abs(x2 - x1)
+                    # 面积
+                    square += (top_length + last_length) * height / 2
+                else:
+                    if x1 == x2:
+                        continue
+                    # 异边 这条直线一定有斜率
+                    k = y2 - y1 / x2 - x1
+                    b = y1 - k * x1
+                    # 交点x坐标
+                    x = (y0 - b) / k
+                    height1 = abs(x - x1)
+                    height2 = abs(x - x2)
+                    square += height1 * abs(y1 - y0) / 2 + height2 * abs(y2 - y0)
+            cost = square / (length ** 2)  # cost = 路径积分/边长^2
+        else:
+            # 起点到终点的斜率 直线方程为y=kx+b
+            k = (yn - y0) / (xn - x0)
+            b = yn - k * xn
+            temp_coord2 = temp_coord[1:]
+            temp_coord.pop()
+            # 这条线路面积
+            square = 0.0
+            # 这条线路边长
+            length = 0.0
+            for index, coord in enumerate(temp_coord):
+                # 这时的coord是一个tuple
+                x1 = coord[0]
+                y1 = coord[1]
+                x2 = temp_coord2[index][0]
+                y2 = temp_coord2[index][1]
+                my_coord1 = (x1, y1)
+                my_coord2 = (x2, y2)
+                length += GeoEdge.calculate_distance(my_coord1, my_coord2)
+                if (x1 >= x0 and x2 >= x0) or (x1 <= x0 and x2 <= x0):
+                    # 同边
+                    # 经过(x1, y1)的直线且垂直于y=kx+b的方程为 y = -x/k + b1
+                    b1 = y1 + x1 / k
+                    # 交点
+                    x3 = (b1 - b) / (k + 1 / k)
+                    y3 = k * x3 + b
+                    # 经过(x2, y2)的直线且垂直于y=kx+b的方程为y = -x/k + b2
+                    b2 = y2 + x2 / k
+                    # 交点
+                    x4 = (b2 - b1) / (k + 1 / k)
+                    y4 = k * x4 + b
+                    # 上底
+                    top_length = GeoEdge.calculate_distance(my_coord1, (x3, y3))
+                    # 下底
+                    last_length = GeoEdge.calculate_distance(my_coord2, (x4, y4))
+                    # 高
+                    height = GeoEdge.calculate_distance((x3, y3), (x4, y4))
+                    # 面积
+                    square += (top_length + last_length) * height / 2
+                else:
+                    if x1 == x2:
+                        # y=kx+b与x=x1交点(x,y)坐标
+                        y = k * x1 + b
+                        x = x1
+                    else:
+                        # y=kx+b 与过(x1,y1) (x2,y2)的直线的交点
+                        y = (y1 - b + (y1 - y2) * x1 / (x2 - x1)) / (k + (y1 - y2) / (x2 - x1))
+                        x = (y - b) / k
+                    # 经过(x1, y1)的直线且垂直于y=kx+b的方程为 y = -x/k + b1
+                    b1 = y1 + x1 / k
+                    # 交点
+                    x3 = (b1 - b) / (k + 1 / k)
+                    y3 = k * x3 + b
+                    # 经过(x2, y2)的直线且垂直于y=kx+b的方程为y = -x/k + b2
+                    b2 = y2 + x2 / k
+                    # 交点
+                    x4 = (b2 - b1) / (k + 1 / k)
+                    y4 = k * x4 + b
+                    # 高1
+                    height1 = GeoEdge.calculate_distance(my_coord1, (x3, y3))
+                    # 高2
+                    height2 = GeoEdge.calculate_distance(my_coord2, (x4, y4))
+                    # 底1
+                    length1 = GeoEdge.calculate_distance((x3, y3), (x, y))
+                    # 底2
+                    length2 = GeoEdge.calculate_distance((x4, y4), (x, y))
+                    # 面积
+                    square += height1 * length1 + height2 * length2
+            cost = square / (length ** 2)  # 路径积分/边长^2
         return cost
 
     '''求出现次数最多的字符串'''
