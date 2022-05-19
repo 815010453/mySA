@@ -292,7 +292,8 @@ class GeoGraph:
 
     @staticmethod
     def reconstruct_edge_sa(graph: 'GeoGraph') -> None:
-        basic_graph = copy.deepcopy(graph)  # 深拷贝建立原始相邻边关系
+        basic_graph = copy.copy(graph)  # 拷贝建立原始相邻边关系
+        result_graph = copy.copy(graph)
         t = 100  # 初始温度100
         alpha = 0.95  # 退火速率
         """
@@ -304,6 +305,7 @@ class GeoGraph:
             markov_len[eId] = True
         # 开始退火
         while t > 1:
+            graph = copy.deepcopy(basic_graph)
             for eId in markov_len.keys():
                 if not markov_len[eId]:
                     continue
@@ -334,13 +336,18 @@ class GeoGraph:
                     for e in remove_list2:
                         con_edge_dict[v][0].remove_con_edge(e, v)
             last_value = func_value
-            last_count = markov_len
-            markov_len, func_value = graph.calculate_graph_cost()
-            delta_value = func_value - last_value
+            markov_len, func_value = graph.calculate_graph_cost(markov_len)
+            if last_value > func_value:
+                result_graph = copy.copy(graph)
+            elif np.random.rand() < np.exp(-(func_value - last_value) / t):
+                result_graph = copy.copy(graph)
+            print("当前温度: ", t)
+            t *= alpha
+        return result_graph
 
     """计算目标函数值"""
 
-    def calculate_graph_cost(self) -> float:
+    def calculate_graph_cost(self, markov_len) -> float:
         # cost
         cost = 0.0
         # 判断当前路计算了没
@@ -350,6 +357,8 @@ class GeoGraph:
         for eId in self.__edges.keys():
             flag_edge[eId] = False
         for eId in self.__edges.keys():
+            if np.random.rand() >= 0.5:
+                markov_len[eId] = False
             if flag_edge[eId]:
                 continue
             edge: GeoEdge = self.__edges[eId]
@@ -390,7 +399,7 @@ class GeoGraph:
                             break
                         else:
                             road_coord = []
-                            cost += 0.1
+                            cost += 10
                             next_edge = next_edge.get_con_edge()[next_vertex][0]
                     else:
                         next_vertices = list(next_edge.get_con_edge().keys())
@@ -439,7 +448,7 @@ class GeoGraph:
                         # next_edge是环路 则终止while
                         if len(next_edge.get_con_edge().keys()) == 1:
                             road_coord.pop()
-                            cost += 0.1
+                            cost += 10
                             break
                         # next_edge是端点 则终止while
                         elif (not list(next_edge.get_con_edge().values())[0] and

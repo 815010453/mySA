@@ -60,8 +60,8 @@ def init_graph(node_path, edge_path, graph_name) -> GeoGraph:
             geo_graph.add_edge(temp_edge)
             count += 1
     # 通过最小变化角重建该图边的相邻关系
-    geo_graph.reconstruct_edge_min_delta_angle()
-    # geo_graph.reconstruct_edge_sa()
+    # geo_graph.reconstruct_edge_min_delta_angle()
+    geo_graph.reconstruct_edge_sa()
     print(geo_graph.check_graph_simple())
 
     print('construct geo_graph successfully')
@@ -74,8 +74,7 @@ if __name__ == '__main__':
                           'T_ROAD/T_ROAD_webmerc.shp', 'TWgraph')
     time_m = datetime.datetime.now()
     print('构建花费时间:', (time_m - time_s).total_seconds(), '秒')
-    print(geoGraph.calculate_graph_cost())
-    # geoGraph.draw_geograph('out/TW_road.shp')
+    geoGraph.draw_geograph('out/TW_road.shp')
     time_e = datetime.datetime.now()
     print('绘制花费时间:', (time_e - time_m).total_seconds(), '秒')
     edge_A = geoGraph.find_edge_id(16836)
@@ -97,60 +96,3 @@ if __name__ == '__main__':
     print('C, 边:', edge_C.get_edge_att())
     print('C, 相邻边', edge_C.get_con_edge())
     print(edge_C.get_delta_angle())
-    '''
-    vertex_a = geoGraph.find_vertex(1)
-    vertex_b = geoGraph.find_vertex(2871)
-    vertex_C = geoGraph.find_vertex(1000)
-    print('A, v_id:', vertex_a.get_id())
-    print('B, v_id:', vertex_b.get_id())
-    print('C, v_id:', vertex_C.get_id())
-
-    print('A, coord:', vertex_a.get_coord())
-    print('A, 节点:', vertex_a.get_node_att())
-    print('A, 相邻点:', vertex_a.get_con_vertex())
-    print('A, 相邻边', vertex_a.get_con_edge())
-
-    print(geoGraph.find_edge(vertex_a, vertex_b))
-    print(geoGraph.findpath_bfs(vertex_a, vertex_C))
-
-    edge_A = geoGraph.find_edge_id(484)
-    edge_B = geoGraph.find_edge_id(485)
-    # edge_C = geoGraph.find_edge_id(16836)
-
-    print('A, e_id:', edge_A.get_id())
-    print('A, coord:', edge_A.get_coord())
-    print('A, 边:', edge_A.get_edge_att())
-    print('A, 相邻边', edge_A.get_con_edge())
-    print(edge_A.get_delta_angle())
-
-    print('B, e_id:', edge_B.get_id())
-    print('B, coord:', edge_B.get_coord())
-    print('B, 边:', edge_B.get_edge_att())
-    print('B, 相邻边', edge_B.get_con_edge())
-    print(edge_B.get_delta_angle())
-    print('C, e_id:', edge_C.get_id())
-    print('C, coord:', edge_C.get_coord())
-    print('C, 边:', edge_C.get_edge_att())
-    print('C, 相邻边', edge_C.get_con_edge())
-    print(edge_C.get_delta_angle())
-
-
-    deltaAngleGeoGraph=GeoGraph.constructGraph_deltaAngle(geoGraph)
-
-    vertex_a = deltaAngleGeoGraph.find_vertex(281)
-    vertex_b = deltaAngleGeoGraph.find_vertex(1)
-    vertex_C = deltaAngleGeoGraph.find_vertex(2871)
-    print('A, v_id:', vertex_a.get_id())
-    print('B, v_id:', vertex_b.get_id())
-    print('C, v_id:', vertex_C.get_id())
-    
-    print('A, coord:', vertex_a.get_coord())
-    print('A, 节点:', vertex_a.get_node_att())
-    print('A, 相邻点:', vertex_a.get_con_vertex())
-
-
-    print(deltaAngleGeoGraph.find_edge(vertex_C, vertex_b))
-    print(deltaAngleGeoGraph.findpath_bfs(vertex_a, vertex_C))
-    print(deltaAngleGeoGraph.find_all_path(vertex_a,vertex_C))
-    print(deltaAngleGeoGraph.draw_geograph())
-'''
