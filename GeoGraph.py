@@ -291,7 +291,7 @@ class GeoGraph:
     """模拟退火算法构建新的相邻边关系"""
 
     @staticmethod
-    def reconstruct_edge_sa(graph: 'GeoGraph') -> None:
+    def reconstruct_edge_sa(graph: 'GeoGraph') -> 'GeoGraph':
         basic_graph = copy.copy(graph)  # 拷贝建立原始相邻边关系
         result_graph = copy.copy(graph)
         t = 100  # 初始温度100
@@ -303,20 +303,23 @@ class GeoGraph:
         markov_len = {}
         for eId in list(graph.__edges.keys()):
             markov_len[eId] = True
+        func_value = None
         # 开始退火
         while t > 1:
-            graph = copy.deepcopy(basic_graph)
             for eId in markov_len.keys():
                 if not markov_len[eId]:
                     continue
-                edge: GeoEdge = graph.__edges[eId]
+                edge: GeoEdge = basic_graph.__edges[eId]
+                loop_edge: GeoEdge = graph.__edges[eId]
                 con_edge_dict = edge.get_con_edge()
+                loop_con_edge_dict = loop_edge.get_con_edge()
                 vertices = list(con_edge_dict.keys())
                 for v in vertices:
                     if not con_edge_dict[v]:
                         continue
                     # 相邻边
                     con_edge = con_edge_dict[v]
+                    loop_con_edge = loop_con_edge_dict[v]
                     # 概率
                     pro_list = edge.get_probability()[v]
                     chose_edge = None
@@ -325,18 +328,15 @@ class GeoGraph:
                             # 选中了
                             chose_edge = e
                             break
-                    if chose_edge is None:
-                        remove_list = [x for x in con_edge]
-                        remove_list2 = [x for x in con_edge_dict[v][0].get_con_edge()[v]]
-                    else:
-                        remove_list = [x for x in con_edge if x != chose_edge]
-                        remove_list2 = [x for x in con_edge_dict[v][0].get_con_edge()[v] if x != edge]
+                    remove_list = [x for x in loop_con_edge]
                     for e in remove_list:
-                        edge.remove_con_edge(e, v)
-                    for e in remove_list2:
-                        con_edge_dict[v][0].remove_con_edge(e, v)
+                        loop_edge.remove_con_edge(e, v)
+                    if chose_edge is not None:
+                        loop_edge.add_con_edge(chose_edge, v)
             last_value = func_value
             markov_len, func_value = graph.calculate_graph_cost(markov_len)
+            if last_value is None:
+                continue
             if last_value > func_value:
                 result_graph = copy.copy(graph)
             elif np.random.rand() < np.exp(-(func_value - last_value) / t):
@@ -347,7 +347,7 @@ class GeoGraph:
 
     """计算目标函数值"""
 
-    def calculate_graph_cost(self, markov_len) -> float:
+    def calculate_graph_cost(self, markov_len):
         # cost
         cost = 0.0
         # 判断当前路计算了没
@@ -469,7 +469,7 @@ class GeoGraph:
                 # 对坐标数组求cost
                 cost += GeoGraph.get_cost(road_coord)
 
-        return count_road, cost
+        return markov_len, cost
 
     '''对数组进行求和'''
 
@@ -500,6 +500,8 @@ class GeoGraph:
         y0 = temp_coord[0][1]
         xn = temp_coord[-1][0]
         yn = temp_coord[-1][1]
+        if x0 == xn and y0 == yn:
+            return 0
         if xn == x0:
             # 总的直线方程是x=x0 无斜率
             temp_coord2 = temp_coord[1:]

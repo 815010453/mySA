@@ -61,7 +61,7 @@ def init_graph(node_path, edge_path, graph_name) -> GeoGraph:
             count += 1
     # 通过最小变化角重建该图边的相邻关系
     # geo_graph.reconstruct_edge_min_delta_angle()
-    geo_graph.reconstruct_edge_sa()
+    geo_graph = GeoGraph.reconstruct_edge_sa(geo_graph)
     print(geo_graph.check_graph_simple())
 
     print('construct geo_graph successfully')
