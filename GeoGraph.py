@@ -6,6 +6,7 @@ from osgeo import osr
 import os
 import copy
 
+glob_cost = []
 """
 GeoGraph Class
 ----------
@@ -334,7 +335,7 @@ class GeoGraph:
                     if chose_edge is not None:
                         loop_edge.add_con_edge(chose_edge, v)
             last_value = func_value
-            markov_len, func_value = graph.calculate_graph_cost(markov_len)
+            markov_len, func_value = graph.calculate_graph_cost(markov_len, t)
             if last_value is None:
                 continue
             if last_value > func_value:
@@ -343,11 +344,12 @@ class GeoGraph:
                 result_graph = copy.copy(graph)
             print("当前温度: ", t)
             t *= alpha
+        print('MAX:' + str(max(glob_cost)))
         return result_graph
 
     """计算目标函数值"""
 
-    def calculate_graph_cost(self, markov_len):
+    def calculate_graph_cost(self, markov_len, t):
         # cost
         cost = 0.0
         # 判断当前路计算了没
@@ -357,7 +359,7 @@ class GeoGraph:
         for eId in self.__edges.keys():
             flag_edge[eId] = False
         for eId in self.__edges.keys():
-            if np.random.rand() >= 0.5:
+            if np.random.rand() >= 1:  # (100 - t) / 99
                 markov_len[eId] = False
             if flag_edge[eId]:
                 continue
@@ -399,7 +401,7 @@ class GeoGraph:
                             break
                         else:
                             road_coord = []
-                            cost += 10
+                            cost += 220000
                             next_edge = next_edge.get_con_edge()[next_vertex][0]
                     else:
                         next_vertices = list(next_edge.get_con_edge().keys())
@@ -448,7 +450,7 @@ class GeoGraph:
                         # next_edge是环路 则终止while
                         if len(next_edge.get_con_edge().keys()) == 1:
                             road_coord.pop()
-                            cost += 10
+                            cost += 220000
                             break
                         # next_edge是端点 则终止while
                         elif (not list(next_edge.get_con_edge().values())[0] and
@@ -489,13 +491,12 @@ class GeoGraph:
         coord = road_coord[0]
         temp_coord = []
         if isinstance(coord, tuple):
-            # 这是孤边 不必降维
-            temp_coord = road_coord
+            return 220000
         else:
             # 降维
-            for d in road_coord:
-                for i in d:
-                    temp_coord.append(i)
+            for index, d in enumerate(road_coord):
+                temp_coord.append(d[0])
+                temp_coord.append(d[-1])
         x0 = temp_coord[0][0]
         y0 = temp_coord[0][1]
         xn = temp_coord[-1][0]
@@ -655,6 +656,7 @@ class GeoGraph:
                     # 面积
                     square += height1 * length1 + height2 * length2
             cost = square / (length ** 2)  # 路径积分/边长^2
+            glob_cost.append(cost)
         return cost
 
     '''求出现次数最多的字符串'''
