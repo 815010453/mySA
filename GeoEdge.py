@@ -17,7 +17,9 @@ class GeoEdge:
     __edgeAttribute: dict
 
     def __init__(self, e_id: int, vertex_a: GeoVertex, vertex_b: GeoVertex,
-                 edge_att: dict = {}) -> None:
+                 edge_att=None) -> None:
+        if edge_att is None:
+            edge_att = {}
         self.__edgeAttribute = edge_att
         self.__id = e_id
         self.__vertices = (vertex_a, vertex_b)
