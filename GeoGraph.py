@@ -1,12 +1,13 @@
+import datetime
+import numpy as np
 from GeoVertex import GeoVertex
 from GeoEdge import GeoEdge
-import numpy as np
 import shapefile  # 使用pyshp
 from osgeo import osr
 import os
-import copy
+import math
+import random
 
-glob_cost = []
 """
 GeoGraph Class
 ----------
@@ -18,51 +19,146 @@ GeoGraph Class
 
 class GeoGraph:
     # 定义私有变量
-    __vertices: 'dict[int]'  # 节点字典 {id1: vertex1, id2: vertex2, ...}
-    __edges: 'dict[int]'  # 边字典 {id1: edge1, id2: edge2}
-    __id: str  # 图名
+    __vertices_id: dict[int]  # 点号对应的节点字典 {id1: vertex1, id2: vertex2, ...}
+    __edges_id: dict[int]  # 边号对应的边字典 {id1: edge1, id2: edge2}
+    __vertices_edge: dict[tuple]  # 点号对应的边号字典 {(vertex1, vertex2): edge1, (vertex3, vertex4): edge2,...}
+    __name: str  # 图名
+    __vertexCoord: dict  # 点的坐标对应的点号
 
     def __init__(self, g_id: str = '') -> None:
-        self.__vertices = {}
-        self.__id = g_id
-        self.__edges = {}
+        self.__vertices_id = {}
+        self.__name = g_id
+        self.__edges_id = {}
+        self.__vertices_edge = {}
+        self.__vertexCoord = {}
 
+    # 通过边文件路径名以及图名构建该图
+    def constructGraph_edge(self, edge_path) -> None:
+        """所有的点构成一张图"""
+        '''开始构建图'''
+        '''读取边的shapefile文件'''
+        '''构建点与点之间的相邻关系以及构建边'''
+        with shapefile.Reader(edge_path, encoding='utf-8') as edgeFile:
+            # 读取属性
+            all_records = edgeFile.records()
+            key_list = []  # 字段名
+            for i in edgeFile.fields:
+                key_list.append(i[0])
+            print(key_list)
+            # 不需要第0个字段名
+            del key_list[0]
+            count = 1
+            count_edge = 1
+            # 读取坐标
+            all_points = edgeFile.shapes()
+            for item, shape in zip(all_records, all_points):
+                # 创建边
+                # 将key和对应的value打包成一个字典
+                temp_dict = dict(zip(key_list, item))
+                if count % 100000 == 0:
+                    print(temp_dict)
+                preVertex = None
+                for point in shape.points:
+                    # 如果节点已经在图中了，则去找它
+                    if point in self.__vertexCoord.keys():
+                        # 如果前置节点不存在，则查找前置节点
+                        if preVertex is None:
+                            preVertex = self.__vertices_id[self.__vertexCoord[point]]
+                            continue
+                        # 否则查找现在的节点
+                        nowVertex = self.__vertices_id[self.__vertexCoord[point]]
+                    # 否则节点不在图中
+                    else:
+                        # 如果前置节点不存在，则创建前置节点
+                        if preVertex is None:
+                            # 创建节点
+                            preVertex = GeoVertex(count, {}, point)
+                            count += 1
+                            continue
+                        # 否则创建现在的节点
+                        nowVertex = GeoVertex(count, {}, point)
+                        count += 1
+                    # 通过前置节点和现在的节点构建该边
+                    nowEdge = GeoEdge(e_id=count_edge, edge_att=temp_dict, vertex_a=preVertex, vertex_b=nowVertex)
+                    # 在图中添加该边
+                    self.add_edge(nowEdge)
+                    count_edge += 1
+                    preVertex = nowVertex
+        '''if self.check_graph_simple():
+            print('Constructing graph succeed!')
+            print('The count of vertices is ' + str(len(list(self.__vertices_id.keys()))))
+            print('The count of edges is ' + str(len(list(self.__edges_id.keys()))))'''
+
+    # 通过面文件路径名以及图面构建该图
+
+    def constructGraph_polygon(self, polygon_path) -> None:
+        with shapefile.Reader(polygon_path, encoding='utf-8') as edgeFile:
+            # 读取属性
+            all_records = edgeFile.records()
+            key_list = []  # 字段名
+            for i in edgeFile.fields:
+                key_list.append(i[0])
+            print(key_list)
+            # 不需要第0个字段名
+            del key_list[0]
+            count = 1
+            count_edge = 1
+            # 读取坐标
+            all_points = edgeFile.shapes()
+            for item, shape in zip(all_records, all_points):
+                # 创建边
+                # 将key和对应的value打包成一个字典
+                temp_dict = dict(zip(key_list, item))
+                if count % 100000 == 0:
+                    print(temp_dict)
+                preVertex = None
+                for point in shape.points:
+                    # 如果节点已经在图中了，则去找它
+                    if point in self.__vertexCoord.keys():
+                        # 如果前置节点不存在，则查找前置节点
+                        if preVertex is None:
+                            preVertex = self.__vertices_id[self.__vertexCoord[point]]
+                            continue
+                        # 否则查找现在的节点
+                        nowVertex = self.__vertices_id[self.__vertexCoord[point]]
+                    # 否则节点不在图中
+                    else:
+                        # 如果前置节点不存在，则创建前置节点
+                        if preVertex is None:
+                            # 创建节点
+                            preVertex = GeoVertex(count, {}, point)
+                            count += 1
+                            continue
+                        # 否则创建现在的节点
+                        nowVertex = GeoVertex(count, {}, point)
+                        count += 1
+                    # 通过前置节点和现在的节点构建该边
+                    nowEdge = GeoEdge(e_id=count_edge, edge_att=temp_dict, vertex_a=preVertex, vertex_b=nowVertex)
+                    # 在图中添加该边
+                    self.add_edge(nowEdge)
+                    count_edge += 1
+                    preVertex = nowVertex
+        '''if self.check_graph_simple():
+            print('Constructing graph succeed!')
+            print('The count of vertices is ' + str(len(list(self.__vertices_id.keys()))))
+            print('The count of edges is ' + str(len(list(self.__edges_id.keys()))))'''
     '''检查该图是否合法（简单图）'''
 
     def check_graph_simple(self) -> bool:
         """检查点是否合法 无重边，无自环"""
-        for edge_id in self.__vertices.keys():
-            temp_value = self.__vertices[edge_id]
-            if edge_id in temp_value.get_con_vertex():
-                print("vertex: error 1")
+        for vertices_id, temp_edge_id in self.__vertices_edge.items():
+            vertices = []
+            for id in vertices_id:
+                vertices.append(self.__vertices_id[id])
+            if len(vertices_id) != 2:
+                print('edge error 1: The edge ' + str(temp_edge_id) + ' is not constructed by 2 vertices')
                 return False
-            judge = {}
-            for i in temp_value.get_con_vertex():
-                if i not in judge.keys() and temp_value in i.get_con_vertex():
-                    judge[i] = 1
-                else:
-                    print("edge: error 2")
-                    return False
-        '''检查边是否合法 无重边 无自边'''
-        for edge_id in self.__edges.keys():
-            temp_edge = self.__edges[edge_id]
-            con_v = list(temp_edge.get_con_edge().keys())
-            con_edge = list(temp_edge.get_con_edge().values())
-            for item in con_edge:
-                if temp_edge in item:
-                    print("edge: error 1")
-                    return False
-            for item in con_v:
-                judge = {}
-                con_edge = temp_edge.get_con_edge()[item]
-                for i in con_edge:
-                    if i not in judge.keys() and temp_edge in i.get_con_edge()[item]:
-                        judge[i] = 1
-                    else:
-                        print(temp_edge)
-                        print("edge: error 2")
-                        return False
-
+            if vertices[0] not in vertices[1].get_con_vertex() or vertices[1] not in vertices[0].get_con_vertex():
+                print('vertex error 1: The vertices ' + str(vertices_id[0]) + ' and ' + str(
+                    vertices_id[1]) + ' is non-adjacent')
+                print(vertices[0].get_con_vertex())
+                print(vertices[1].get_con_vertex())
+                return False
         return True
 
     '''
@@ -70,69 +166,412 @@ class GeoGraph:
     '''
 
     def get_vertices(self) -> dict:
-        return self.__vertices
+        return self.__vertices_id
 
     def get_edges(self) -> dict:
-        return self.__edges
+        return self.__edges_id
 
     def get_id(self) -> str:
-        return self.__id
+        return self.__name
 
     def set_id(self, g_id: str) -> None:
-        self.__id = g_id
+        self.__name = g_id
 
     '''添加节点'''
 
     def add_vertex(self, geo_vertex: GeoVertex) -> None:
-        self.__vertices[geo_vertex.get_id()] = geo_vertex
+        self.__vertices_id[geo_vertex.get_id()] = geo_vertex
+        self.__vertexCoord[geo_vertex.get_coord()] = geo_vertex.get_id()
 
     '''删除节点'''
 
     def remove_vertex_v(self, geo_vertex: GeoVertex) -> None:
         v_id = geo_vertex.get_id()
-        del self.__vertices[v_id]
+        del self.__vertices_id[v_id]
+        conVertices = geo_vertex.get_con_vertex()
+        for vertex in conVertices:
+            edge_id = self.find_edge_vertices(vertex, geo_vertex)
+            vertices_id = []
+            vertices = self.__edges_id[edge_id].get_vertices()
+            for v in vertices:
+                vertices_id.append(v.get_id())
+            vertices_id = tuple(vertices_id)
+            del self.__vertices_edge[vertices_id]
+            del self.__vertices_edge[(vertices_id[1], vertices_id[0])]
+            del self.__edges_id[edge_id]
 
-    '''图中边的添加与删除'''
+    '''添加边'''
 
     def add_edge(self, edge: GeoEdge) -> None:
-        vertices = list(edge.get_con_edge().keys())
-        self.__edges[edge.get_id()] = edge
-        # 添加相邻关系
-        if len(vertices) == 2:
-            vertices[0].add_con_vertex(vertices[1], edge)
-        elif len(vertices) == 1:
-            vertices[0].add_con_vertex(vertices[0], edge)
+        vertices = edge.get_vertices()
+        # 先在图中添加点
+        for i in vertices:
+            self.add_vertex(i)
+        vertices_id = tuple([i.get_id() for i in vertices])
+        self.__edges_id[edge.get_id()] = edge
+        self.__vertices_edge[vertices_id] = edge.get_id()
+        self.__vertices_edge[(vertices_id[1], vertices_id[0])] = edge.get_id()
+        vertices[0].add_con_vertex(vertices[1])
+
+    '''删除边'''
 
     def remove_edge(self, edge: GeoEdge) -> None:
-        vertices = list(edge.get_con_edge().keys())
-        del self.__edges[edge.get_id()]
+        vertices = edge.get_vertices()
+        vertices_id = tuple([i.get_id() for i in vertices])
+        del self.__edges_id[edge.get_id()]
         # 删除相邻关系
-        if len(vertices) == 2:
-            vertices[0].remove_con_vertex(vertices[1], edge)
-        elif len(vertices) == 1:
-            vertices[0].remove_con_vertex(vertices[0], edge)
+        vertices[0].remove_con_vertex(vertices[1])
+        del self.__vertices_edge[vertices_id]
+        del self.__vertices_edge[(vertices_id[1], vertices_id[0])]
 
     '''通过节点id查找节点'''
 
-    def find_vertex(self, v_id: int) -> GeoVertex:
-        return self.__vertices[v_id]
+    def find_vertex_id(self, v_id: int) -> GeoVertex:
+        return self.__vertices_id[v_id]
 
     '''通过两节点找边'''
 
-    @staticmethod
-    def find_edge_v(vertex_1: GeoVertex, vertex_2: GeoVertex) -> GeoEdge:
-        con_v = vertex_1.get_con_vertex()
-        index = con_v.index(vertex_2)
-        return vertex_1.get_con_edge()[index]
+    def find_edge_vertices(self, vertex1: GeoVertex, vertex2: GeoVertex) -> int:
+        vertices_id1 = (vertex1.get_id(), vertex2.get_id())
+        vertices_id2 = (vertex2.get_id(), vertex1.get_id())
+        if vertices_id1 in self.__vertices_edge.keys():
+            return self.__vertices_edge[(vertex1, vertex2)]
+        if vertices_id2 in self.__vertices_edge.keys():
+            return self.__vertices_edge[(vertex2, vertex1)]
 
-    '''通过边号找边 消除引用'''
+    '''通过边号找边'''
 
     def find_edge_id(self, e_id: int) -> GeoEdge:
-        return self.__edges[e_id]
+        return self.__edges_id[e_id]
+
+    '''断开相邻点的连接(新增了点号)'''
+
+    def disconnect_vertex(self, vertex: GeoVertex, vertices: list, new_id: int, subVertex: dict,
+                          auxVertex: dict) -> int:
+        """subVertex: {v_id1: [new_id1, new_id2, ...], v_id2: [new_id3, ....]} 父节点对应分裂出的点号集合
+            auxVertex: {new_id1: v_id1, new_id2: v_id2 } 分裂出的点号对应的父节点
+        """
+        newVertex = GeoVertex(new_id, vertex.get_node_att(), vertex.get_coord())
+        self.__vertices_id[new_id] = newVertex
+        if vertex.get_id() not in auxVertex.keys():
+            auxVertex[new_id] = vertex.get_id()
+            subVertex[vertex.get_id()] = [new_id]
+        else:
+            auxVertex[new_id] = auxVertex[vertex.get_id()]
+            subVertex[auxVertex[new_id]].append(new_id)
+        # 删除相邻关系，添加新相邻关系
+        for v in vertices:
+            vertex.remove_con_vertex(v)
+            newVertex.add_con_vertex(v)
+        new_id += 1
+        return new_id
+
+    '''合并两个点'''
+
+    @staticmethod
+    def connect_vertex(vertex1: GeoVertex, vertex2: GeoVertex) -> None:
+        conVertex_b = [i for i in vertex2.get_con_vertex()]
+        for vertex in conVertex_b:
+            vertex1.add_con_vertex(vertex)
+            vertex2.remove_con_vertex(vertex)
+
+    '''最小变化角构建新相邻边关系（对节点进行遍历）'''
+
+    def reconstruct_edge_min_delta_angle(self, k=math.pi / 6) -> dict:
+        """
+        基于最小角度变化重构图，返回一个字典，该字典包含所有被合并的边。
+
+        :param k: 两条边的夹角的最小变化角度的阈值。默认为math.pi/6(30度)
+        :type k: float
+        :return: 道路字典。key是道路的ID，值是节点集合。
+        :rtype: dict
+        """
+        vertices_id = self.__vertices_id.keys()
+        new_id = len(vertices_id) + 1
+        judge_id = new_id
+        vertex_id = 1
+        subVertex = {}
+        auxVertex = {}
+        while vertex_id in self.__vertices_id.keys():
+            vertex: GeoVertex = self.__vertices_id[vertex_id]
+            conVertices = [i for i in vertex.get_con_vertex()]
+            count = len(conVertices)
+            conVertices_id = [i.get_id() for i in conVertices]
+            vertex_id += 1
+            if count <= 1:
+                continue
+            elif count == 2 and vertex_id <= judge_id:
+                continue
+            else:
+                calDict = {}
+                oldConVertices = [i for i in conVertices]
+                # 分别计算不同组合下的夹角值
+                while conVertices:
+                    vertex1 = conVertices.pop()
+                    vertex1_id = conVertices_id.pop()
+                    for vertex2, vertex2_id in zip(conVertices, conVertices_id):
+                        calDict[(vertex1_id, vertex2_id)] = GeoGraph.calculate_angle(vertex1.get_coord(),
+                                                                                     vertex2.get_coord(),
+                                                                                     vertex.get_coord())
+                # 对value进行升序排列
+                angleArray = {k: v for k, v in sorted(calDict.items(), key=lambda item: item[1])}
+                judgeArray = list(angleArray.values())
+                if judgeArray[0] <= k:
+                    # 如果最小的比临界值小，则应该是这两个节点进行连接
+                    linkedVertices = list(list(angleArray.keys())[0])
+                    oldConVertices.remove(self.__vertices_id[linkedVertices[0]])
+                    oldConVertices.remove(self.__vertices_id[linkedVertices[1]])
+                else:
+                    # 最小的变化角比临界值大，则该点应该作为起始节点
+                    oldConVertices.pop()
+                # 断开该点与其它节点的连接关系
+                if oldConVertices:
+                    new_id = self.disconnect_vertex(vertex, oldConVertices, new_id, subVertex, auxVertex)
+        '''if self.check_graph_simple():
+            print('Constructing graph succeed!')
+            print('The count of vertices is ' + str(len(list(self.__vertices_id.keys()))))
+            print('The count of edges is ' + str(len(list(self.__edges_id.keys()))))'''
+        return self.road_trace()
+
+    """模拟退火算法构建新的相邻边关系"""
+
+    def reconstruct_edge_sa(self, t: float, alpha: float) -> dict:
+        """
+        使用模拟退火算法重建图的顶点之间的新的相邻边关系
+
+        Args:
+            t（float）：模拟退火算法的初始温度。
+            alpha（float）：模拟退火算法的温度衰减率。
+
+        Returns:
+            dict：道路字典。key是道路的ID，值是节点集合。
+        """
+        vertices_id = self.__vertices_id.keys()
+        new_id: int = len(vertices_id) + 1
+        judge_id = new_id
+        vertex_id = 1
+        subVertex = {}  # {v_id1: [new_id1, new_id2, ...], v_id2: [new_id3, ....]} 父节点对应分裂出的点号集合
+        auxVertex = {}  # {new_id1: v_id1, new_id2: v_id2 } 分裂出的点号对应的父节点
+        angleDict = {}
+        if t <= 1:
+            return {}
+        # 初始化，所有度大于2的点分裂出度为1的点
+        print('Starting to initialize')
+        time_m = datetime.datetime.now()
+        while vertex_id in self.__vertices_id.keys():
+            vertex: GeoVertex = self.__vertices_id[vertex_id]
+            conVertices = [i for i in vertex.get_con_vertex()]
+            count = len(conVertices)
+            vertex_id += 1
+            if count <= 1:
+                continue
+            elif count == 2 and vertex_id <= judge_id:
+                continue
+            else:
+                oldConVertices = [i for i in conVertices]
+                oldConVertices.pop()
+                new_id = self.disconnect_vertex(vertex, oldConVertices, new_id, subVertex, auxVertex)
+        for v_id, value in subVertex.items():
+            chosen = [v_id] + value
+            angleDict[v_id] = {}
+            val = 0
+            while chosen:
+                vertex_id1 = chosen.pop()
+                for vertex_id2 in chosen:
+                    conVertex1 = self.__vertices_id[vertex_id1].get_con_vertex()[0]
+                    conVertex2 = self.__vertices_id[vertex_id2].get_con_vertex()[0]
+                    angle = math.pi - self.calculate_angle(conVertex1.get_coord(), conVertex2.get_coord(),
+                                                           self.__vertices_id[v_id].get_coord())
+                    angleDict[v_id][(vertex_id1, vertex_id2)] = round(angle / math.pi, 6)
+                    val += round(angle / math.pi, 6)
+            # 对value进行升序排列
+            angleDict[v_id] = {k: v for k, v in sorted(angleDict[v_id].items(), key=lambda item: item[1])}
+        # 原始相邻关系字典
+        iniDict = {}
+        for v_id, value in self.__vertices_id.items():
+            iniDict[v_id] = [i.get_id() for i in value.get_con_vertex()]
+            self.__vertices_id[v_id].set_con_vertex([])
+        time_e = datetime.datetime.now()
+        print('初始化花费时间:', (time_e - time_m).total_seconds(), '秒')
+        # 计算目标函数值
+        cost = 99999999
+        print('当前目标函数值:', round(cost, 2))
+        time_m = datetime.datetime.now()
+        result = {}  # 最终相邻关系字典
+        for v_id, value in iniDict.items():
+            result[v_id] = [i for i in value]
+        time_e = datetime.datetime.now()
+        print('拷贝花费时间:', (time_e - time_m).total_seconds(), '秒')
+        print('Starting to anneal')
+        while t > 1:
+            print("当前温度: ", round(t, 3))
+            time_m = datetime.datetime.now()
+            # 回归初始状态
+            nowDict = {}
+            for v_id, value in iniDict.items():
+                nowDict[v_id] = [i for i in value]
+            nowCost = 0
+            for v_id, value in subVertex.items():
+                '''# 获取等待选择的节点号
+                chosen = [v_id] + value
+                while len(chosen) >= 2:
+                    random_numbers = random.sample(range(0, len(chosen)), 2)
+                    random_number1 = random_numbers[0]
+                    random_number2 = random_numbers[1]
+                    # 两个点相连
+                    # 排序一个从小到大的节点号
+                    ids: list = [chosen[random_number1], chosen[random_number2]]
+                    ids.sort()
+                    chosen.remove(ids[0])
+                    chosen.remove(ids[1])
+                    random_number1 = random.randint(0, len(chosen) - 1)
+                    random_number2 = random.randint(0, len(chosen) - 1)
+                    # 可能不相连
+                    if random_number2 == random_number1:
+                        del chosen[random_number1]
+                        continue'''
+                # 获取夹角值的字典
+                tempDict = {k: v for k, v in angleDict[v_id].items()}
+                while tempDict:
+                    lst = self.adjust_list(list(tempDict.values()))
+                    random_number = random.random()
+                    print(random_number)
+                    count = 0
+                    ids: tuple
+                    for key, pro in zip(tempDict.keys(), lst):
+                        count += pro
+                        if random_number < count:
+                            ids = key
+                            break
+                    print(ids)
+                    # 合并两个节点
+                    conId = nowDict[ids[1]][0]
+                    nowDict[conId].append(ids[0])
+                    nowDict[conId].remove(ids[1])
+                    nowDict[ids[0]].append(conId)
+                    nowDict[ids[1]] = []
+                    nowCost += (self.calculate_angle(self.__vertices_id[conId].get_coord(),
+                                                     self.__vertices_id[nowDict[ids[0]][0]].get_coord(),
+                                                     self.__vertices_id[ids[0]].get_coord())) / math.pi
+                    del tempDict[ids]
+            nowCost += self.get_cost(nowDict)
+            dE = nowCost - cost
+            print('当前目标函数值:', round(nowCost, 3))
+            time_e = datetime.datetime.now()
+            print('单次循环花费时间:', (time_e - time_m).total_seconds(), '秒')
+            if dE <= 0 or np.random.rand() < np.exp(-dE / t):
+                # 如果能接受，则保存结果
+                cost = nowCost
+                print('接受当前目标函数值')
+                for v_id, value in nowDict.items():
+                    result[v_id] = [i for i in value]
+            t *= alpha
+        # 根据相邻关系字典重建
+        for v_id, vertex in self.__vertices_id.items():
+            realConV_id = result[v_id]
+            for conV in realConV_id:
+                vertex.add_con_vertex(self.__vertices_id[conV])
+        return self.road_trace()
+
+    '''路径追踪'''
+
+    def road_trace(self) -> dict:
+        roadDict = {}
+        road_count = 1
+        nodeVertex = []
+        visitedVertex = {}
+        for v_id, vertex in self.__vertices_id.items():
+            visitedVertex[v_id] = False
+            if len(vertex.get_con_vertex()) == 1:
+                nodeVertex.append(v_id)
+            elif len(vertex.get_con_vertex()) != 2:
+                visitedVertex[v_id] = True
+        '''端点'''
+        for v_id in nodeVertex:
+            if not visitedVertex[v_id]:
+                visitedVertex[v_id] = True
+                roadDict[road_count] = []
+                nowVertex = self.__vertices_id[v_id]
+                nextVertex = self.__vertices_id[v_id].get_con_vertex()[0]
+                roadDict[road_count].append(nowVertex)
+                while len(nextVertex.get_con_vertex()) != 1:
+                    # 只要nextVertex不是端点
+                    preVertex = nowVertex
+                    nowVertex = nextVertex
+                    vertices = [i for i in nowVertex.get_con_vertex()]
+                    nextVertex = vertices[1] if vertices[0] == preVertex else vertices[0]
+                    visitedVertex[nowVertex.get_id()] = True
+                    roadDict[road_count].append(nowVertex)
+                roadDict[road_count].append(nextVertex)
+                visitedVertex[nextVertex.get_id()] = True
+                road_count += 1
+        '''环路'''
+        for v_id, nowVertex in self.__vertices_id.items():
+            if visitedVertex[v_id]:
+                continue
+            visitedVertex[v_id] = True
+            roadDict[road_count] = []
+            nextVertex = nowVertex.get_con_vertex()[0]
+            roadDict[road_count].append(nowVertex)
+            while not visitedVertex[nextVertex.get_id()]:
+                preVertex = nowVertex
+                nowVertex = nextVertex
+                vertices = [i for i in nowVertex.get_con_vertex()]
+                nextVertex = vertices[1] if vertices[0] == preVertex else vertices[0]
+                roadDict[road_count].append(nowVertex)
+                visitedVertex[nowVertex.get_id()] = True
+            roadDict[road_count].append(nextVertex)
+            road_count += 1
+
+        return roadDict
+
+    '''根据相邻关系表计算目标函数'''
+
+    @staticmethod
+    def get_cost(conDict: dict) -> float:
+        road_count = 1
+        nodeVertex = []
+        visitedVertex = {}
+        for v_id, conVertex in conDict.items():
+            visitedVertex[v_id] = False
+            if len(conVertex) == 1:
+                nodeVertex.append(v_id)
+            elif len(conVertex) != 2:
+                visitedVertex[v_id] = True
+        '''端点'''
+        for v_id in nodeVertex:
+            if not visitedVertex[v_id]:
+                visitedVertex[v_id] = True
+                nowVertex = v_id
+                nextVertex = conDict[v_id][0]
+                while len(conDict[nextVertex]) != 1:
+                    # 只要nextVertex不是端点
+                    preVertex = nowVertex
+                    nowVertex = nextVertex
+                    vertices = [i for i in conDict[nowVertex]]
+                    nextVertex = vertices[1] if vertices[0] == preVertex else vertices[0]
+                    visitedVertex[nowVertex] = True
+                visitedVertex[nextVertex] = True
+                road_count += 1
+        '''环路'''
+        for v_id in conDict.keys():
+            if visitedVertex[v_id]:
+                continue
+            visitedVertex[v_id] = True
+            nowVertex = v_id
+            nextVertex = conDict[v_id][0]
+            while not visitedVertex[nextVertex]:
+                preVertex = nowVertex
+                nowVertex = nextVertex
+                vertices = [i for i in conDict[nowVertex]]
+                nextVertex = vertices[1] if vertices[0] == preVertex else vertices[0]
+                visitedVertex[nowVertex] = True
+            road_count += 1
+        return road_count - 1
 
     '''利用BFS遍历从s到t的最短路径(无权图)'''
 
-    def findpath_bfs(self, s: 'GeoVertex', t: 'GeoVertex') -> 'list[GeoVertex]':
+    def findPath_bfs(self, s: GeoVertex, t: GeoVertex) -> list[GeoVertex]:
         if s == t:
             return []
         res_path = []  # result
@@ -140,27 +579,27 @@ class GeoGraph:
         open_list = []  # Queue FIFO
         visited_vertex = {}  # is visited?
         search_vertex = {}  # key is the son node, value is the father node
-        for key in self.__vertices.keys():
-            visited_vertex[self.__vertices[key]] = False
-            search_vertex[self.__vertices[key]] = None
+        for key in self.__vertices_id.keys():
+            visited_vertex[key] = False
+            search_vertex[key] = None
         next_vertex = s
         open_list.append(next_vertex)
-        visited_vertex[next_vertex] = True
+        visited_vertex[next_vertex.get_id()] = True
         while True:
             open_list.remove(next_vertex)
             for v in next_vertex.get_con_vertex():
-                if not visited_vertex[v]:
+                if not visited_vertex[v.get_id()]:
                     open_list.append(v)
-                    visited_vertex[v] = True
+                    visited_vertex[v.get_id()] = True
                     # next_vertex is the father geo_vertex
-                    search_vertex[v] = next_vertex
+                    search_vertex[v.get_id()] = next_vertex
                 if v == t:
                     # find the path
                     res_path.append(t)
                     next_vertex = t
-                    while search_vertex[next_vertex] is not None:
-                        res_path.append(search_vertex[next_vertex])
-                        next_vertex = search_vertex[next_vertex]
+                    while search_vertex[next_vertex.get_id()] is not None:
+                        res_path.append(search_vertex[next_vertex.get_id()])
+                        next_vertex = search_vertex[next_vertex.get_id()]
                     return res_path[::-1]
             if len(open_list) == 0:
                 # failure
@@ -171,837 +610,141 @@ class GeoGraph:
     '''非递归方法查找从s到t的所有路径'''
 
     @staticmethod
-    def find_all_path(s: GeoVertex, t: GeoVertex) -> dict:
-        """build stack in order to get all path form s to t"""
+    def findAllPath(s: GeoVertex, t: GeoVertex) -> tuple[list, bool]:
+        """build stack in order to get all paths form s to t"""
         '''initialize'''
-        main_stack = []  # main stack
-        sub_stack = []  # second stack
-        main_stack.append(s)
-        next_node_list = []
-        for v in s.get_con_vertex():
-            next_node_list.append(v)
-        sub_stack.append(next_node_list)
-        temp = sub_stack.pop()
-        if len(temp) == 0:
-            return {}
-        next_node = temp[0]
-        main_stack.append(temp.pop(0))
-        sub_stack.append(temp)
-        count = 0
-        all_path = {}  # key is the number of road, value is the path
-        next_node_list = []
-        for v in next_node.get_con_vertex():
-            if v not in main_stack:
-                next_node_list.append(v)
-        sub_stack.append(next_node_list)
-        while len(main_stack) != 0:
-            if main_stack[-1] == t:
-                # find one path and save
-                count += 1
-                all_path[count] = []
-                for v in main_stack:
-                    all_path[count].append(v)
-                main_stack.pop()
-                sub_stack.pop()
-            next_node_list = sub_stack.pop()
-            if len(next_node_list) != 0:
-                next_node = next_node_list[0]
-                main_stack.append(next_node_list.pop(0))
-                sub_stack.append(next_node_list)
-                next_node_list = []
-                for v in next_node.get_con_vertex():
-                    if v not in main_stack:
-                        next_node_list.append(v)
-                sub_stack.append(next_node_list)
-            else:
-                main_stack.pop()
-        return all_path
+        stack = [(s, [s])]
+        paths = []
+        flag = True
+        while stack and flag:
+            (vertex, path) = stack.pop()
+            '''k -= 1
+            if k < 0:
+                break'''
+            for neighbor in vertex.get_con_vertex():
+                if neighbor in path:
+                    # 避免重复经过环路中的节点
+                    continue
+                if neighbor == t:
+                    if len(paths) == 1:
+                        flag = False
+                        break
+                    paths.append(path + [t])
+
+                else:
+                    stack.append((neighbor, path + [neighbor]))
+        delList = []
+        for path in paths:
+            if path[-1] != t:
+                delList.append(path)
+        for del_list in delList:
+            paths.remove(del_list)
+        return paths, flag
 
     def __str__(self) -> str:
-        return str(self.__id)
+        return str(self.__name)
 
     def __repr__(self) -> str:
-        return str(self.__id)
+        return str(self.__name)
 
-    '''最小变化角构建新的相邻边关系'''
+    '''路径绘制'''
 
-    def reconstruct_edge_min_delta_angle(self) -> None:
-        key_id = self.__edges.keys()
-        for e_id in key_id:
-            temp_edge: GeoEdge = self.__edges[e_id]
-            temp_con_edge = temp_edge.get_con_edge()
-            # 这种环路比较特殊 需要特殊处理
-            if len(temp_con_edge.keys()) == 1:
-                continue
-            vertex1: GeoVertex
-            vertex2: GeoVertex
-            [vertex1, vertex2] = temp_con_edge.keys()
-            """fclass相等的边才能进行连接判断"""
-            fclass: str = temp_edge.get_edge_att()['fclass']
-            fclass_con_edge = {vertex1: [x for x in temp_con_edge[vertex1]
-                                         if x.get_edge_att()['fclass'] != fclass],
-                               vertex2: [x for x in temp_con_edge[vertex2]
-                                         if x.get_edge_att()['fclass'] != fclass]}
-            for i in fclass_con_edge[vertex1]:
-                temp_edge.remove_con_edge(i, vertex1)
-            for i in fclass_con_edge[vertex2]:
-                temp_edge.remove_con_edge(i, vertex2)
-            delta_angle = temp_edge.get_delta_angle()
-            if len(temp_con_edge[vertex1]) == 1:
-                # 判断相邻的是不是环路 如果是 则不计算变化角
-                if len(temp_con_edge[vertex1][0].get_con_edge().keys()) != 1:
-                    delta_angle_vertex1 = delta_angle[vertex1][0]
-                    if abs(delta_angle_vertex1) >= np.pi / 6:
-                        temp_edge.remove_con_edge(temp_con_edge[vertex1][0], vertex1)
-            # == 0的情况是端点，不做处理
-            elif len(temp_con_edge[vertex1]) != 0:
-                delta_angle_vertex1 = delta_angle[vertex1]
-                # 查找变化角最小,且<pi/6的边
-                min_angle = min(delta_angle_vertex1)
-                if abs(min_angle) < np.pi / 6:
-                    min_edge = temp_con_edge[vertex1][delta_angle_vertex1.index(min_angle)]
-                    temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1] if x != min_edge]
-                    for i in temp_con_edge_vertex1:
-                        temp_edge.remove_con_edge(i, vertex1)
-                else:
-                    temp_con_edge_vertex1 = [x for x in temp_con_edge[vertex1]]
-                    for i in temp_con_edge_vertex1:
-                        temp_edge.remove_con_edge(i, vertex1)
-            if len(temp_con_edge[vertex2]) == 1:
-                # 判断相邻的是不是环路 如果是 则不计算变化角
-                if len(temp_con_edge[vertex2][0].get_con_edge().keys()) != 1:
-                    delta_angle_vertex2 = delta_angle[vertex2][0]
-                    if abs(delta_angle_vertex2) >= np.pi / 6:
-                        temp_edge.remove_con_edge(temp_con_edge[vertex2][0], vertex2)
-            elif len(temp_con_edge[vertex2]) != 0:
-                delta_angle_vertex2 = delta_angle[vertex2]
-                # 查找变化角最小,且<pi/6的边
-                min_angle = min(delta_angle_vertex2)
-                if abs(min_angle) < np.pi / 6:
-                    """仅保留最小变化角的边相连关系，删除其它边的相连关系"""
-                    min_edge = temp_con_edge[vertex2][delta_angle_vertex2.index(min_angle)]
-                    temp_con_edge_vertex2 = [x for x in temp_con_edge[vertex2] if x != min_edge]
-                    for i in temp_con_edge_vertex2:
-                        temp_edge.remove_con_edge(i, vertex2)
-                else:
-                    """相邻边全部删除"""
-                    temp_con_edge_vertex2 = [x for x in temp_con_edge[vertex2]]
-                    for i in temp_con_edge_vertex2:
-                        temp_edge.remove_con_edge(i, vertex2)
-
-    """模拟退火算法构建新的相邻边关系"""
-
-    @staticmethod
-    def reconstruct_edge_sa(graph: 'GeoGraph') -> 'GeoGraph':
-        basic_graph = copy.copy(graph)  # 拷贝建立原始相邻边关系
-        result_graph = copy.copy(graph)
-        t = 100  # 初始温度100
-        alpha = 0.95  # 退火速率
+    def draw_geograph(self, out_path: str, roadDict: dict) -> None:
         """
-        马尔科夫链长(为了方便 存储的是{边id: bool} False代表本次迭代没有它) = key个数是边数 算法在马尔可夫链的长度内持续进行产生新解、判断、接受/舍弃的迭代过程
-                    随着t的降低 马尔科夫链链长也会减少
+        使用 pyshp 库画图。
+
+        Args:
+            out_path (str): 输出的路径和文件名，不包括后缀名。
+            roadDict (dict): 道路字典，包含每一条道路的所有点，格式为 {id: [vertex1, vertex2, ...]}。
+
+        Returns:
+            None
         """
-        markov_len = {}
-        for eId in list(graph.__edges.keys()):
-            markov_len[eId] = True
-        func_value = None
-        # 开始退火
-        while t > 1:
-            for eId in markov_len.keys():
-                if not markov_len[eId]:
-                    continue
-                edge: GeoEdge = basic_graph.__edges[eId]
-                loop_edge: GeoEdge = graph.__edges[eId]
-                con_edge_dict = edge.get_con_edge()
-                loop_con_edge_dict = loop_edge.get_con_edge()
-                vertices = list(con_edge_dict.keys())
-                for v in vertices:
-                    if not con_edge_dict[v]:
-                        continue
-                    # 相邻边
-                    con_edge = con_edge_dict[v]
-                    loop_con_edge = loop_con_edge_dict[v]
-                    # 概率
-                    pro_list = edge.get_probability()[v]
-                    chose_edge = None
-                    for index, e in enumerate(con_edge):
-                        if np.random.rand() <= pro_list[index]:
-                            # 选中了
-                            chose_edge = e
-                            break
-                    remove_list = [x for x in loop_con_edge]
-                    for e in remove_list:
-                        loop_edge.remove_con_edge(e, v)
-                    if chose_edge is not None:
-                        loop_edge.add_con_edge(chose_edge, v)
-            last_value = func_value
-            markov_len, func_value = graph.calculate_graph_cost(markov_len, t)
-            if last_value is None:
-                continue
-            if last_value > func_value:
-                result_graph = copy.copy(graph)
-            elif np.random.rand() < np.exp(-(func_value - last_value) / t):
-                result_graph = copy.copy(graph)
-            print("当前温度: ", t)
-            t *= alpha
-        print('MAX:' + str(max(glob_cost)))
-        return result_graph
-
-    """计算目标函数值"""
-
-    def calculate_graph_cost(self, markov_len, t):
-        # cost
-        cost = 0.0
-        # 判断当前路计算了没
-        flag_edge = {}
-        # 计数 构建的线路数
-        count_road = 0
-        for eId in self.__edges.keys():
-            flag_edge[eId] = False
-        for eId in self.__edges.keys():
-            if np.random.rand() >= 1:  # (100 - t) / 99
-                markov_len[eId] = False
-            if flag_edge[eId]:
-                continue
-            edge: GeoEdge = self.__edges[eId]
-            # 它是环路
-            if len(list(edge.get_con_edge().keys())) == 1:
-                next_edge = edge
-                next_vertex: GeoVertex = list(next_edge.get_con_edge().keys())[0]
-                # 线路数+=1
-                count_road += 1
-                # 这条线路的坐标
-                road_coord = []
-                # 循环数
-                count_while = 0
-                # 没到下一个环路或端点就一直循环
-                while True:
-                    count_while += 1
-                    flag_edge[next_edge.get_id()] = True
-                    # 坐标
-                    road_coord.append(next_edge.get_coord())
-                    # next_edge不是起始边
-                    if count_while != 1:
-                        # next_edge是环路 则终止while
-                        if len(next_edge.get_con_edge().keys()) == 1:
-                            road_coord.pop()
-                            break
-                        # next_edge是端点 则终止while
-                        elif (not list(next_edge.get_con_edge().values())[0] and
-                              list(next_edge.get_con_edge().values())[
-                                  1]) or (not list(next_edge.get_con_edge().values())[1]
-                                          and list(next_edge.get_con_edge().values())[0]):
-                            break
-                    # 否则找到下一个next_edge
-                    # 它是环路
-                    if len(list(next_edge.get_con_edge().keys())) == 1:
-                        # 它是环路且是孤边
-                        if not next_edge.get_con_edge()[next_vertex]:
-                            road_coord = []
-                            break
-                        else:
-                            road_coord = []
-                            cost += 220000
-                            next_edge = next_edge.get_con_edge()[next_vertex][0]
-                    else:
-                        next_vertices = list(next_edge.get_con_edge().keys())
-                        if next_vertex == next_vertices[0]:
-                            next_vertex = next_vertices[1]
-                        else:
-                            next_vertex = next_vertices[0]
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-
-                # 根据coord计算偏移量
-                cost += GeoGraph.get_cost(road_coord)
-            # 它是孤边 edge.__conEdge = {v1: [], v2: []}
-            elif not list(edge.get_con_edge().values())[0] and not list(edge.get_con_edge().values())[1]:
-                flag_edge[eId] = True
-                count_road += 1
-                vertices = list(edge.get_con_edge().keys())
-                # 它本来就是孤边
-                if not vertices[0].get_con_vertex() and not vertices[1].get_con_vertex():
-                    continue
-                # 我们后来把它分成了孤边
-                else:
-                    cost += GeoGraph.get_cost(edge.get_coord())
-            # 它是端点 edge.__conEdge = {v1: [e1, ...], v2: []} or edge.__conEdge = {v1: [], v2: [e1, ...]}
-            elif (not list(edge.get_con_edge().values())[0] and list(edge.get_con_edge().values())[1]) or \
-                    (not list(edge.get_con_edge().values())[1] and list(edge.get_con_edge().values())[0]):
-                next_edge = edge
-                # 这条线路的id
-                count_road += 1
-                # 这条线路的坐标
-                road_coord = []
-                # while循环计数
-                count_while = 0
-                # 找到下一个节点
-                if list(next_edge.get_con_edge().values())[0]:
-                    next_vertex = list(next_edge.get_con_edge().keys())[1]
-                else:
-                    next_vertex = list(next_edge.get_con_edge().keys())[0]
-                # 没到端点或环路就一直循环
-                while True:
-                    count_while += 1
-                    flag_edge[next_edge.get_id()] = True
-                    # 坐标
-                    road_coord.append(next_edge.get_coord())
-                    # next_edge不是起始边
-                    if count_while != 1:
-                        # next_edge是环路 则终止while
-                        if len(next_edge.get_con_edge().keys()) == 1:
-                            road_coord.pop()
-                            cost += 220000
-                            break
-                        # next_edge是端点 则终止while
-                        elif (not list(next_edge.get_con_edge().values())[0] and
-                              list(next_edge.get_con_edge().values())[
-                                  1]) or (not list(next_edge.get_con_edge().values())[1]
-                                          and list(next_edge.get_con_edge().values())[0]):
-                            break
-                    # next_edge即不是起始边也不是终止边，则找到下一个next_edge
-                    if len(list(next_edge.get_con_edge().keys())) == 1:
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-                    else:
-                        next_vertices = list(next_edge.get_con_edge().keys())
-                        if next_vertex == next_vertices[0]:
-                            next_vertex = next_vertices[1]
-                        else:
-                            next_vertex = next_vertices[0]
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-                # 对坐标数组求cost
-                cost += GeoGraph.get_cost(road_coord)
-
-        return markov_len, cost
-
-    '''对数组进行求和'''
-
-    @staticmethod
-    def get_sum_value(value_str):
-        my_sum = 0.0
-        for item in value_str:
-            my_sum = my_sum + item
-        return my_sum
-
-    """通过coord计算cost"""
-
-    @staticmethod
-    def get_cost(road_coord):
-        if not road_coord:
-            return 0.0
-        coord = road_coord[0]
-        temp_coord = []
-        if isinstance(coord, tuple):
-            return 220000
-        else:
-            # 降维
-            for index, d in enumerate(road_coord):
-                temp_coord.append(d[0])
-                temp_coord.append(d[-1])
-        x0 = temp_coord[0][0]
-        y0 = temp_coord[0][1]
-        xn = temp_coord[-1][0]
-        yn = temp_coord[-1][1]
-        if x0 == xn and y0 == yn:
-            return 0
-        if xn == x0:
-            # 总的直线方程是x=x0 无斜率
-            temp_coord2 = temp_coord[1:]
-            temp_coord.pop()
-            # 这条路线积分
-            square = 0.0
-            # 这条线路边长
-            length = 0.0
-            for index, coord in enumerate(temp_coord):
-                # 这时的coord是一个tuple
-                x1 = coord[0]
-                y1 = coord[1]
-                x2 = temp_coord2[index][0]
-                y2 = temp_coord2[index][1]
-                my_coord1 = (x1, y1)
-                my_coord2 = (x2, y2)
-                length += GeoEdge.calculate_distance(my_coord1, my_coord2)
-                if y2 == y1:
-                    continue
-                if (x1 >= x0 and x2 >= x0) or (x1 <= x0 and x2 <= x0):
-                    # 同边
-                    # 经过(x1, y1)的直线且垂直于x=x0的方程为y=y1
-                    # 经过(x2, y2)的直线且垂直于x=x1的方程为y=y2
-                    # 上底
-                    top_length = abs(x2 - x0)
-                    # 下底
-                    last_length = abs(x1 - x0)
-                    # 高
-                    height = abs(y2 - y1)
-                    # 面积
-                    square += (top_length + last_length) * height / 2
-                else:
-                    # 异边 这条直线一定有斜率
-                    k = y2 - y1 / x2 - x1
-                    b = y1 - k * x1
-                    # 交点y坐标
-                    y = k * x0 + b
-                    height1 = abs(y - y1)
-                    height2 = abs(y - y2)
-                    square += height1 * abs(x1 - x0) / 2 + height2 * abs(x2 - x0)
-            cost = square / (length ** 2)  # cost = 路径积分/边长^2
-        elif yn == y0:
-            # 总的直线方程是y=y0
-            temp_coord2 = temp_coord[1:]
-            temp_coord.pop()
-            # 这条路线积分
-            square = 0.0
-            # 这条线路边长
-            length = 0.0
-            for index, coord in enumerate(temp_coord):
-                # 这时的coord是一个tuple
-                x1 = coord[0]
-                y1 = coord[1]
-                x2 = temp_coord2[index][0]
-                y2 = temp_coord2[index][1]
-                my_coord1 = (x1, y1)
-                my_coord2 = (x2, y2)
-                length += GeoEdge.calculate_distance(my_coord1, my_coord2)
-                if x2 == x1:
-                    continue
-                if (x1 >= x0 and x2 >= x0) or (x1 <= x0 and x2 <= x0):
-                    # 同边
-                    # 经过(x1, y1)的直线且垂直于y=y0的方程为x=x1
-                    # 经过(x2, y2)的直线且垂直于y=y1的方程为x=x2
-                    # 上底
-                    top_length = abs(y2 - y0)
-                    # 下底
-                    last_length = abs(y1 - y0)
-                    # 高
-                    height = abs(x2 - x1)
-                    # 面积
-                    square += (top_length + last_length) * height / 2
-                else:
-                    if x1 == x2:
-                        continue
-                    # 异边 这条直线一定有斜率
-                    k = y2 - y1 / x2 - x1
-                    b = y1 - k * x1
-                    # 交点x坐标
-                    x = (y0 - b) / k
-                    height1 = abs(x - x1)
-                    height2 = abs(x - x2)
-                    square += height1 * abs(y1 - y0) / 2 + height2 * abs(y2 - y0)
-            cost = square / (length ** 2)  # cost = 路径积分/边长^2
-        else:
-            # 起点到终点的斜率 直线方程为y=kx+b
-            k = (yn - y0) / (xn - x0)
-            b = yn - k * xn
-            temp_coord2 = temp_coord[1:]
-            temp_coord.pop()
-            # 这条线路面积
-            square = 0.0
-            # 这条线路边长
-            length = 0.0
-            for index, coord in enumerate(temp_coord):
-                # 这时的coord是一个tuple
-                x1 = coord[0]
-                y1 = coord[1]
-                x2 = temp_coord2[index][0]
-                y2 = temp_coord2[index][1]
-                my_coord1 = (x1, y1)
-                my_coord2 = (x2, y2)
-                length += GeoEdge.calculate_distance(my_coord1, my_coord2)
-                if (x1 >= x0 and x2 >= x0) or (x1 <= x0 and x2 <= x0):
-                    # 同边
-                    # 经过(x1, y1)的直线且垂直于y=kx+b的方程为 y = -x/k + b1
-                    b1 = y1 + x1 / k
-                    # 交点
-                    x3 = (b1 - b) / (k + 1 / k)
-                    y3 = k * x3 + b
-                    # 经过(x2, y2)的直线且垂直于y=kx+b的方程为y = -x/k + b2
-                    b2 = y2 + x2 / k
-                    # 交点
-                    x4 = (b2 - b1) / (k + 1 / k)
-                    y4 = k * x4 + b
-                    # 上底
-                    top_length = GeoEdge.calculate_distance(my_coord1, (x3, y3))
-                    # 下底
-                    last_length = GeoEdge.calculate_distance(my_coord2, (x4, y4))
-                    # 高
-                    height = GeoEdge.calculate_distance((x3, y3), (x4, y4))
-                    # 面积
-                    square += (top_length + last_length) * height / 2
-                else:
-                    if x1 == x2:
-                        # y=kx+b与x=x1交点(x,y)坐标
-                        y = k * x1 + b
-                        x = x1
-                    else:
-                        # y=kx+b 与过(x1,y1) (x2,y2)的直线的交点
-                        y = (y1 - b + (y1 - y2) * x1 / (x2 - x1)) / (k + (y1 - y2) / (x2 - x1))
-                        x = (y - b) / k
-                    # 经过(x1, y1)的直线且垂直于y=kx+b的方程为 y = -x/k + b1
-                    b1 = y1 + x1 / k
-                    # 交点
-                    x3 = (b1 - b) / (k + 1 / k)
-                    y3 = k * x3 + b
-                    # 经过(x2, y2)的直线且垂直于y=kx+b的方程为y = -x/k + b2
-                    b2 = y2 + x2 / k
-                    # 交点
-                    x4 = (b2 - b1) / (k + 1 / k)
-                    y4 = k * x4 + b
-                    # 高1
-                    height1 = GeoEdge.calculate_distance(my_coord1, (x3, y3))
-                    # 高2
-                    height2 = GeoEdge.calculate_distance(my_coord2, (x4, y4))
-                    # 底1
-                    length1 = GeoEdge.calculate_distance((x3, y3), (x, y))
-                    # 底2
-                    length2 = GeoEdge.calculate_distance((x4, y4), (x, y))
-                    # 面积
-                    square += height1 * length1 + height2 * length2
-            cost = square / (length ** 2)  # 路径积分/边长^2
-            glob_cost.append(cost)
-        return cost
-
-    '''求出现次数最多的字符串'''
-
-    @staticmethod
-    def get_most_times_value(value_str):
-        my_hash = dict()
-        for item in value_str:
-            if item in my_hash:
-                my_hash[item] += 1
-            else:
-                my_hash[item] = 1
-
-        return max(my_hash, key=my_hash.get)
-
-    def draw_geograph(self, out_path: str = '') -> None:
-        """利用pyshp画图"""
         # gdal对应的proj.db在这个文件夹下
         os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
         # 字段
-        fields: list = []
-        for eId in self.__edges.keys():
-            fields = list(self.__edges[eId].get_edge_att().keys())
-            break
-        fields.remove('osmid')
-        fields.remove('keyId')
-        fields.append('包含的路段id')
-        fields.append('id')
+        fields = ['id', 'length', 'nodes']
         print(fields)
-
         # 写字段
         w = shapefile.Writer(out_path, shapeType=3, encoding='utf-8')
         for i in list(fields):
             if i == 'length':
                 w.field(i, 'N', decimal=5)
-            elif i == 'id':
-                w.field('id', 'N', decimal=0)
             else:
-                w.field(i, 'C')
-
-        # 判断当前路画了没
-        flag_edge = {}
-        # 计数 处理的路段数
-        count_line = 0
-        # 计数 构建的线路数 当成构建线路时的唯一id
-        count_road = 0
-        for eId in self.__edges.keys():
-            flag_edge[eId] = False
-        for eId in self.__edges.keys():
-            if flag_edge[eId]:
-                continue
-            edge: GeoEdge = self.__edges[eId]
-            # 它是环路
-            if len(list(edge.get_con_edge().keys())) == 1:
-                next_edge = edge
-                next_vertex: GeoVertex = list(next_edge.get_con_edge().keys())[0]
-                # 这条线路的id
-                count_road += 1
-                # 这条线路的属性
-                road_record = []
-                # 这条线路的坐标
-                road_coord = []
-                # 循环数
-                count_while = 0
-                # 找到起始节点
-                from_id = list(edge.get_con_edge().keys())[0].get_id()
-                # 没到下一个环路或端点就一直循环
-                while True:
-                    count_while += 1
-                    flag_edge[next_edge.get_id()] = True
-                    # 当前路段的属性
-                    temp_road_record = []
-                    count_line += 1
-                    for t in fields:
-                        if t == 'from_' or t == 'to':
-                            temp_road_record.append(int(next_edge.get_edge_att()[t]))
-                        elif t == 'osmid' or t == 'keyId':
-                            continue
-                        elif t == '包含的路段id':
-                            temp_road_record.append(int(next_edge.get_edge_att()['keyId']))
-                        elif t == 'id':
-                            temp_road_record.append(count_road)
-                        else:
-                            temp_road_record.append(next_edge.get_edge_att()[t])
-                    # 添加进总线路属性中
-                    road_record.append(temp_road_record)
-                    # 坐标
-                    road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
-                    # next_edge不是起始边
-                    if count_while != 1:
-                        # next_edge是环路 则终止while
-                        if len(next_edge.get_con_edge().keys()) == 1:
-                            # 找到终止节点
-                            to_id = list(next_edge.get_con_edge().keys())[0].get_id()
-                            break
-                        # next_edge是端点 则终止while
-                        elif (not list(next_edge.get_con_edge().values())[0] and
-                              list(next_edge.get_con_edge().values())[
-                                  1]) or (not list(next_edge.get_con_edge().values())[1]
-                                          and list(next_edge.get_con_edge().values())[0]):
-                            # 终止节点
-                            if list(next_edge.get_con_edge().values())[0]:
-                                to_id = list(next_edge.get_con_edge().keys())[0].get_id()
-                            else:
-                                to_id = list(next_edge.get_con_edge().keys())[1].get_id()
-                            break
-                    # 否则找到下一个next_edge
-                    # 它是环路
-                    if len(list(next_edge.get_con_edge().keys())) == 1:
-                        # 它是环路且是孤边
-                        if not next_edge.get_con_edge()[next_vertex]:
-                            to_id = from_id
-                            break
-                        else:
-                            next_edge = next_edge.get_con_edge()[next_vertex][0]
-                    else:
-                        next_vertices = list(next_edge.get_con_edge().keys())
-                        if next_vertex == next_vertices[0]:
-                            next_vertex = next_vertices[1]
-                        else:
-                            next_vertex = next_vertices[0]
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-                # 对总线路属性进行整理 保留出现次数最多的字符串 求和等
-                road_record = list(map(list, zip(*road_record)))
-                final_record = []
-                for index, rec in enumerate(road_record):
-                    # 求和字段
-                    if fields[index] == 'length':
-                        final_record.append(GeoGraph.get_sum_value(rec))
-                    # 该线路id
-                    elif fields[index] == 'id':
-                        final_record.append(count_road)
-                    # 起始节点
-                    elif fields[index] == 'from_':
-                        final_record.append(int(from_id))
-                    # 终止节点
-                    elif fields[index] == 'to':
-                        final_record.append(int(to_id))
-                    # 包含的路段id
-                    elif fields[index] == '包含的路段id':
-                        final_record.append(rec)
-                    # 否则获取出现次数最多的字符串
-                    else:
-                        final_record.append(GeoGraph.get_most_times_value(rec))
-                # 写这条线路
-                w.record(*final_record)
-                w.line(road_coord)
-            # 它是孤边 edge.__conEdge = {v1: [], v2: []}
-            elif not list(edge.get_con_edge().values())[0] and not list(edge.get_con_edge().values())[1]:
-                flag_edge[eId] = True
-                count_line += 1
-                count_road += 1
-                # 记录属性
-                road_record = []
-                for t in fields:
-                    if t == 'from_' or t == 'to':
-                        road_record.append(int(edge.get_edge_att()[t]))
-                    elif t == 'osmid' or t == 'keyId':
-                        continue
-                    elif t == '包含的路段id':
-                        road_record.append(int(edge.get_edge_att()['keyId']))
-                    elif t == 'id':
-                        # 加入唯一id
-                        road_record.append(count_road)
-                    else:
-                        road_record.append(edge.get_edge_att()[t])
-                # 画这条线路
-                w.record(*road_record)  # 属性
-                w.line([GeoEdge.mercator_tolonlat(edge.get_coord())])  # 坐标
-
-            # 它是端点 edge.__conEdge = {v1: [e1, ...], v2: []} or edge.__conEdge = {v1: [], v2: [e1, ...]}
-            elif (not list(edge.get_con_edge().values())[0] and list(edge.get_con_edge().values())[1]) or \
-                    (not list(edge.get_con_edge().values())[1] and list(edge.get_con_edge().values())[0]):
-                next_edge = edge
-                # 这条线路的id
-                count_road += 1
-                # 这条线路的属性
-                road_record = []
-                # 这条线路的坐标
-                road_coord = []
-                # while循环计数
-                count_while = 0
-                # 找到起始节点
-                if list(next_edge.get_con_edge().values())[0]:
-                    from_id = list(next_edge.get_con_edge().keys())[0].get_id()
-                    next_vertex = list(next_edge.get_con_edge().keys())[1]
-                else:
-                    from_id = list(next_edge.get_con_edge().keys())[1].get_id()
-                    next_vertex = list(next_edge.get_con_edge().keys())[0]
-                # 没到端点或环路就一直循环
-                while True:
-                    count_while += 1
-                    flag_edge[next_edge.get_id()] = True
-                    # 当前路段的属性
-                    temp_road_record = []
-                    count_line += 1
-                    for t in fields:
-                        if t == 'from_' or t == 'to':
-                            temp_road_record.append(int(next_edge.get_edge_att()[t]))
-                        elif t == 'osmid' or t == 'keyId':
-                            continue
-                        elif t == '包含的路段id':
-                            temp_road_record.append(int(next_edge.get_edge_att()['keyId']))
-                        elif t == 'id':
-                            temp_road_record.append(count_road)
-                        else:
-                            temp_road_record.append(next_edge.get_edge_att()[t])
-                    # 添加进总线路属性中
-                    road_record.append(temp_road_record)
-                    # 坐标
-                    road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
-                    # next_edge不是起始边
-                    if count_while != 1:
-                        # next_edge是环路 则终止while
-                        if len(next_edge.get_con_edge().keys()) == 1:
-                            # 找到终止节点
-                            to_id = list(next_edge.get_con_edge().keys())[0].get_id()
-                            break
-                        # next_edge是端点 则终止while
-                        elif (not list(next_edge.get_con_edge().values())[0] and
-                              list(next_edge.get_con_edge().values())[
-                                  1]) or (not list(next_edge.get_con_edge().values())[1]
-                                          and list(next_edge.get_con_edge().values())[0]):
-                            # 找到终止节点
-                            if list(next_edge.get_con_edge().values())[0]:
-                                to_id = list(next_edge.get_con_edge().keys())[0].get_id()
-                            else:
-                                to_id = list(next_edge.get_con_edge().keys())[1].get_id()
-                            break
-                    # next_edge即不是起始边也不是终止边，则找到下一个next_edge
-                    if len(list(next_edge.get_con_edge().keys())) == 1:
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-                    else:
-                        next_vertices = list(next_edge.get_con_edge().keys())
-                        if next_vertex == next_vertices[0]:
-                            next_vertex = next_vertices[1]
-                        else:
-                            next_vertex = next_vertices[0]
-                        next_edge = next_edge.get_con_edge()[next_vertex][0]
-                # 对总线路属性进行整理 保留出现次数最多的字符串 求和等
-                road_record = list(map(list, zip(*road_record)))
-                final_record = []
-                for index, rec in enumerate(road_record):
-                    # 求和字段
-                    if fields[index] == 'length':
-                        final_record.append(GeoGraph.get_sum_value(rec))
-                    # 该线路id
-                    elif fields[index] == 'id':
-                        final_record.append(count_road)
-                    # 起始节点
-                    elif fields[index] == 'from_':
-                        final_record.append(int(from_id))
-                    # 终止节点
-                    elif fields[index] == 'to':
-                        final_record.append(int(to_id))
-                    # 包含的路段id
-                    elif fields[index] == '包含的路段id':
-                        final_record.append(rec)
-                    # 否则获取出现次数最多的字符串
-                    else:
-                        final_record.append(GeoGraph.get_most_times_value(rec))
-                # 写这条线路
-                w.record(*final_record)
-                w.line(road_coord)
-        # 现在都是由不是端点的路组成的新的环路
-        for eId in self.__edges.keys():
-            if flag_edge[eId]:
-                continue
-            edge: GeoEdge = self.__edges[eId]
-            next_edge = edge
-            next_vertex = list(next_edge.get_con_edge().keys())[0]
-            from_id = to_id = next_vertex.get_id()
-            # 这条线路的id
-            count_road += 1
-            # 这条线路的属性
-            road_record = []
-            # 这条线路的坐标
+                w.field(i, 'N', decimal=0)
+        for id, vertices in roadDict.items():
+            preVertex = None
+            # 这条线的坐标
             road_coord = []
-            while True:
-                flag_edge[next_edge.get_id()] = True
-                # 当前路段的属性
-                temp_road_record = []
-                count_line += 1
-                for t in fields:
-                    if t == 'from_' or t == 'to':
-                        temp_road_record.append(int(next_edge.get_edge_att()[t]))
-                    elif t == 'osmid' or t == 'keyId':
-                        continue
-                    elif t == '包含的路段id':
-                        temp_road_record.append(int(next_edge.get_edge_att()['keyId']))
-                    elif t == 'id':
-                        temp_road_record.append(count_road)
-                    else:
-                        temp_road_record.append(next_edge.get_edge_att()[t])
-                # 添加进总线路属性中
-                road_record.append(temp_road_record)
-                # 坐标
-                road_coord.append(GeoEdge.mercator_tolonlat(next_edge.get_coord()))
-                next_vertices = list(next_edge.get_con_edge().keys())
-                # 找下一个nex_edge
-                if next_vertex == next_vertices[0]:
-                    next_vertex = next_vertices[1]
-                else:
-                    next_vertex = next_vertices[0]
-                next_edge = next_edge.get_con_edge()[next_vertex][0]
-                # 如果该next_edge写过了 则终止while循环
-                if flag_edge[next_edge.get_id()]:
-                    break
-            # 对总线路属性进行整理 保留出现次数最多的字符串 求和等
-            road_record = list(map(list, zip(*road_record)))
-            final_record = []
-            for index, rec in enumerate(road_record):
-                # 求和字段
-                if fields[index] == 'length':
-                    final_record.append(GeoGraph.get_sum_value(rec))
-                # 该线路id
-                elif fields[index] == 'id':
-                    final_record.append(count_road)
-                # 起始节点
-                elif fields[index] == 'from_':
-                    final_record.append(int(from_id))
-                # 终止节点
-                elif fields[index] == 'to':
-                    final_record.append(int(to_id))
-                # 包含的路段id
-                elif fields[index] == '包含的路段id':
-                    final_record.append(rec)
-                # 否则获取出现次数最多的字符串
-                else:
-                    final_record.append(GeoGraph.get_most_times_value(rec))
-            # 写这条线路
-            w.record(*final_record)
-            w.line(road_coord)
-        print('处理了', count_line, '条路段，生成', count_road, '条路')
+            # 这条线路的长度
+            road_length = 0
+            for vertex in vertices:
+                if preVertex is None:
+                    preVertex = vertex
+                    continue
+                nowVertex = vertex
+                road_length += self.calculate_distance(preVertex.get_coord(), nowVertex.get_coord())
+                road_coord.append(self.mercator_tolonlat(preVertex.get_coord()))
+                preVertex = nowVertex
+            road_coord.append(self.mercator_tolonlat(preVertex.get_coord()))
+            w.line([road_coord])
+            w.record(str(id), str(road_length), str(len(vertices)))
         w.close()
         # 写投影信息
         proj = osr.SpatialReference()
         proj.ImportFromEPSG(4326)
         wkt = proj.ExportToWkt()
         # 写出prj文件
-        f = open(out_path.replace(".shp", ".prj"), 'w')
-        f.write(wkt)
-        f.close()
-        for e_id in flag_edge.keys():
-            if not flag_edge[e_id]:
-                print(e_id)
+        with open(out_path.replace(".shp", ".prj"), 'w') as f:
+            f.write(wkt)
 
         return None
+
+    '''
+    静态方法 计算距离
+    '''
+
+    @staticmethod
+    def calculate_distance(coord1: tuple, coord2: tuple) -> float:
+        return ((coord1[0] - coord2[0]) ** 2 + (coord1[1] - coord2[1]) ** 2) ** 0.5
+
+    '''
+    静态方法 计算角度变化
+    '''
+
+    @staticmethod
+    def calculate_angle(coord1: tuple, coord2: tuple, mid: tuple) -> float:
+        a = [coord1[0] - mid[0], coord1[1] - mid[1]]
+        b = [coord2[0] - mid[0], coord2[1] - mid[1]]
+        dot_product = sum([x * y for x, y in zip(a, b)])
+        a_norm = math.sqrt(sum([x ** 2 for x in a]))
+        b_norm = math.sqrt(sum([y ** 2 for y in b]))
+        cos_theta = dot_product / (a_norm * b_norm)
+        cos_theta = round(cos_theta, 6)
+        theta = math.acos(cos_theta)
+        if theta > math.pi:
+            theta = 2 * math.pi - theta
+        return round(math.pi - theta, 6)
+
+    '''
+    静态方法 坐标系3857转4326 (x, y)m->(longitude, latitude)°
+    '''
+
+    @staticmethod
+    def mercator_tolonlat(coord_merca: tuple) -> tuple:
+        x = coord_merca[0] / 20037508.34 * 180
+        y = coord_merca[1] / 20037508.34 * 180
+        y = 180.0 / math.pi * \
+            (2 * math.atan(math.exp(y * math.pi / 180.0)) - math.pi / 2)
+        out = (x, y)
+        return out
+
+    @staticmethod
+    def adjust_list(lst):
+        lst2 = [math.exp(i) - 1 for i in lst]
+
+        # 确保所有值之和为1
+        total = sum(lst2)
+        for i in range(len(lst2)):
+            lst2[i] /= total
+        return lst2
