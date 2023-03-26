@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 from GeoVertex import GeoVertex
 from GeoEdge import GeoEdge
 
@@ -13,25 +14,46 @@ GeoVertex Class
 
 class GeoPolygon:
     __id: int
-    __edges:list  # 组成该面的边
+    __vertices: list  # 组成该面的点
     # 该面的属性 {'市': '北京市', 'pop': ..., ...}
     __polygonAttribute: dict
+    __conGeoPoly: list
 
-    def __init__(self, p_id: int, edges, poly_att=None) -> None:
-        if poly_att is None:
-            __polygonAttribute = {}
+    def __init__(self, p_id: int, vertices: list[GeoEdge], poly_att=None) -> None:
         self.__polygonAttribute = poly_att
         self.__id = p_id
-        self.__edges = edges
+        self.__vertices = vertices
+        self.__conGeoPoly = []
+
+    '''添加相邻的节点'''
+
+    def add_con_polygon(self, polygon: 'GeoPolygon') -> None:
+        if polygon != self and polygon not in self.__conGeoPoly:
+            # 添加相邻点
+            self.__conGeoPoly.append(polygon)
+            # 再调用一次相邻点添加
+            polygon.add_con_polygon(self)
+
+    '''删除相邻的节点'''
+
+    def remove_con_polygon(self, polygon: 'GeoPolygon') -> None:
+        if polygon in self.__conGeoPoly:
+            # 删除相邻点
+            self.__conGeoPoly.remove(polygon)
+            # 再调用一次相邻点删除
+            polygon.remove_con_polygon(self)
 
     def get_id(self) -> int:
         return self.__id
 
-    def get_edge_att(self) -> dict:
+    def get_poly_att(self) -> dict:
         return self.__polygonAttribute
 
-    def get_edges(self) -> list:
-        return self.__edges
+    def get_vertices(self) -> list:
+        return self.__vertices
+
+    def get_con_polygon(self) -> list:
+        return self.__conGeoPoly
 
     def set_id(self, p_id: int) -> None:
         self.__id = p_id
@@ -41,3 +63,14 @@ class GeoPolygon:
 
     def set_edges(self, edges: list) -> None:
         self.__edges = edges
+
+    def __str__(self) -> str:
+        return str(self.__id)
+
+    def __repr__(self) -> str:
+        return str(self.__id)
+
+    def __eq__(self, other):
+        if not isinstance(other, GeoPolygon):
+            return False
+        return other.__id == self.__id

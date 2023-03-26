@@ -1,7 +1,9 @@
+# -*- coding:utf-8 -*-
 import datetime
 import numpy as np
 from GeoVertex import GeoVertex
 from GeoEdge import GeoEdge
+from GeoPolygon import GeoPolygon
 import shapefile  # 使用pyshp
 from osgeo import osr
 import os
@@ -24,6 +26,8 @@ class GeoGraph:
     __vertices_edge: dict[tuple]  # 点号对应的边号字典 {(vertex1, vertex2): edge1, (vertex3, vertex4): edge2,...}
     __name: str  # 图名
     __vertexCoord: dict  # 点的坐标对应的点号
+    __polygon_id: dict[int]  # 多边形号对应的多边形
+    __vertex_polygon: dict  # 点对应的多边形
 
     def __init__(self, g_id: str = '') -> None:
         self.__vertices_id = {}
@@ -31,6 +35,8 @@ class GeoGraph:
         self.__edges_id = {}
         self.__vertices_edge = {}
         self.__vertexCoord = {}
+        self.__polygon_id = {}
+        self.__vertex_polygon = {}
 
     # 通过边文件路径名以及图名构建该图
     def constructGraph_edge(self, edge_path) -> None:
@@ -105,6 +111,7 @@ class GeoGraph:
             count_edge = 1
             # 读取坐标
             all_points = edgeFile.shapes()
+            polygon_id = 0
             for item, shape in zip(all_records, all_points):
                 # 创建边
                 # 将key和对应的value打包成一个字典
@@ -112,12 +119,15 @@ class GeoGraph:
                 if count % 100000 == 0:
                     print(temp_dict)
                 preVertex = None
+                polygon_id += 1
+                vertices = []
                 for point in shape.points:
                     # 如果节点已经在图中了，则去找它
                     if point in self.__vertexCoord.keys():
                         # 如果前置节点不存在，则查找前置节点
                         if preVertex is None:
                             preVertex = self.__vertices_id[self.__vertexCoord[point]]
+                            vertices.append(preVertex)
                             continue
                         # 否则查找现在的节点
                         nowVertex = self.__vertices_id[self.__vertexCoord[point]]
@@ -127,21 +137,30 @@ class GeoGraph:
                         if preVertex is None:
                             # 创建节点
                             preVertex = GeoVertex(count, {}, point)
+                            vertices.append(preVertex)
                             count += 1
                             continue
                         # 否则创建现在的节点
                         nowVertex = GeoVertex(count, {}, point)
                         count += 1
-                    # 通过前置节点和现在的节点构建该边
-                    nowEdge = GeoEdge(e_id=count_edge, edge_att=temp_dict, vertex_a=preVertex, vertex_b=nowVertex)
-                    # 在图中添加该边
-                    self.add_edge(nowEdge)
-                    count_edge += 1
+                    vertices.append(nowVertex)
+                    nowEdge_id = self.find_edge_vertices(preVertex, nowVertex)
+                    if nowEdge_id is None:
+                        # 通过前置节点和现在的节点构建该边
+                        nowEdge = GeoEdge(e_id=count_edge, edge_att={}, vertex_a=preVertex, vertex_b=nowVertex)
+                        # 在图中添加该边
+                        self.add_edge(nowEdge)
+                        count_edge += 1
                     preVertex = nowVertex
+                geopolygon = GeoPolygon(polygon_id, vertices, temp_dict)
+                self.add_polygon(geopolygon)
+        for p_id, polygon in self.__polygon_id.items():
+            print(polygon.get_poly_att()['市'], [i.get_poly_att()['市'] for i in polygon.get_con_polygon()])
         '''if self.check_graph_simple():
             print('Constructing graph succeed!')
             print('The count of vertices is ' + str(len(list(self.__vertices_id.keys()))))
             print('The count of edges is ' + str(len(list(self.__edges_id.keys()))))'''
+
     '''检查该图是否合法（简单图）'''
 
     def check_graph_simple(self) -> bool:
@@ -224,6 +243,21 @@ class GeoGraph:
         del self.__vertices_edge[vertices_id]
         del self.__vertices_edge[(vertices_id[1], vertices_id[0])]
 
+    '''添加多边形'''
+
+    def add_polygon(self, polygon: GeoPolygon) -> None:
+        vertices: list[GeoVertex] = polygon.get_vertices()
+        self.__polygon_id[polygon.get_id()] = polygon
+        for v in vertices:
+            v_id = v.get_id()
+            if v_id not in self.__vertex_polygon.keys():
+                self.__vertex_polygon[v_id] = [polygon]
+            else:
+                con_polygon = self.__vertex_polygon[v_id]
+                for p in con_polygon:
+                    polygon.add_con_polygon(p)
+                self.__vertex_polygon[v_id].append(polygon)
+
     '''通过节点id查找节点'''
 
     def find_vertex_id(self, v_id: int) -> GeoVertex:
@@ -235,14 +269,19 @@ class GeoGraph:
         vertices_id1 = (vertex1.get_id(), vertex2.get_id())
         vertices_id2 = (vertex2.get_id(), vertex1.get_id())
         if vertices_id1 in self.__vertices_edge.keys():
-            return self.__vertices_edge[(vertex1, vertex2)]
+            return self.__vertices_edge[vertices_id1]
         if vertices_id2 in self.__vertices_edge.keys():
-            return self.__vertices_edge[(vertex2, vertex1)]
+            return self.__vertices_edge[vertices_id2]
 
     '''通过边号找边'''
 
     def find_edge_id(self, e_id: int) -> GeoEdge:
         return self.__edges_id[e_id]
+
+    '''通过多边形号找多边形'''
+
+    def find_polygon_id(self, p_id: int) -> GeoPolygon:
+        return self.__polygon_id[p_id]
 
     '''断开相邻点的连接(新增了点号)'''
 
@@ -382,8 +421,8 @@ class GeoGraph:
                     conVertex2 = self.__vertices_id[vertex_id2].get_con_vertex()[0]
                     angle = math.pi - self.calculate_angle(conVertex1.get_coord(), conVertex2.get_coord(),
                                                            self.__vertices_id[v_id].get_coord())
-                    angleDict[v_id][(vertex_id1, vertex_id2)] = round(angle / math.pi, 6)
-                    val += round(angle / math.pi, 6)
+                    angleDict[v_id][(vertex_id1, vertex_id2)] = angle / math.pi
+                    val += angle / math.pi
             # 对value进行升序排列
             angleDict[v_id] = {k: v for k, v in sorted(angleDict[v_id].items(), key=lambda item: item[1])}
         # 原始相邻关系字典
@@ -435,7 +474,6 @@ class GeoGraph:
                 while tempDict:
                     lst = self.adjust_list(list(tempDict.values()))
                     random_number = random.random()
-                    print(random_number)
                     count = 0
                     ids: tuple
                     for key, pro in zip(tempDict.keys(), lst):
@@ -443,18 +481,28 @@ class GeoGraph:
                         if random_number < count:
                             ids = key
                             break
-                    print(ids)
                     # 合并两个节点
                     conId = nowDict[ids[1]][0]
                     nowDict[conId].append(ids[0])
                     nowDict[conId].remove(ids[1])
                     nowDict[ids[0]].append(conId)
                     nowDict[ids[1]] = []
-                    nowCost += (self.calculate_angle(self.__vertices_id[conId].get_coord(),
-                                                     self.__vertices_id[nowDict[ids[0]][0]].get_coord(),
-                                                     self.__vertices_id[ids[0]].get_coord())) / math.pi
+                    ang = (self.calculate_angle(self.__vertices_id[conId].get_coord(),
+                                                self.__vertices_id[nowDict[ids[0]][0]].get_coord(),
+                                                self.__vertices_id[ids[0]].get_coord())) / math.pi
+                    nowCost += ang ** 2
                     del tempDict[ids]
-            nowCost += self.get_cost(nowDict)
+                    id1 = ids[0]
+                    id2 = ids[1]
+                    delList = []
+                    for key in tempDict.keys():
+                        if id1 in key or id2 in key:
+                            delList.append(key)
+                    for val in delList:
+                        del tempDict[val]
+
+            weig = self.get_cost(nowDict)
+            nowCost += weig
             dE = nowCost - cost
             print('当前目标函数值:', round(nowCost, 3))
             time_e = datetime.datetime.now()
@@ -532,6 +580,7 @@ class GeoGraph:
         road_count = 1
         nodeVertex = []
         visitedVertex = {}
+        cost = 0
         for v_id, conVertex in conDict.items():
             visitedVertex[v_id] = False
             if len(conVertex) == 1:
@@ -544,6 +593,7 @@ class GeoGraph:
                 visitedVertex[v_id] = True
                 nowVertex = v_id
                 nextVertex = conDict[v_id][0]
+                count = 1
                 while len(conDict[nextVertex]) != 1:
                     # 只要nextVertex不是端点
                     preVertex = nowVertex
@@ -551,6 +601,9 @@ class GeoGraph:
                     vertices = [i for i in conDict[nowVertex]]
                     nextVertex = vertices[1] if vertices[0] == preVertex else vertices[0]
                     visitedVertex[nowVertex] = True
+                    count += 1
+                if count > 3:
+                    cost -= 1
                 visitedVertex[nextVertex] = True
                 road_count += 1
         '''环路'''
@@ -560,14 +613,18 @@ class GeoGraph:
             visitedVertex[v_id] = True
             nowVertex = v_id
             nextVertex = conDict[v_id][0]
+            count = 1
             while not visitedVertex[nextVertex]:
                 preVertex = nowVertex
                 nowVertex = nextVertex
                 vertices = [i for i in conDict[nowVertex]]
                 nextVertex = vertices[1] if vertices[0] == preVertex else vertices[0]
                 visitedVertex[nowVertex] = True
+                count += 1
+            if count > 3:
+                cost -= 1
             road_count += 1
-        return road_count - 1
+        return cost
 
     '''利用BFS遍历从s到t的最短路径(无权图)'''
 
@@ -663,7 +720,7 @@ class GeoGraph:
         # gdal对应的proj.db在这个文件夹下
         os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
         # 字段
-        fields = ['id', 'length', 'nodes']
+        fields = ['id', 'length', 'vertices']
         print(fields)
         # 写字段
         w = shapefile.Writer(out_path, shapeType=3, encoding='utf-8')

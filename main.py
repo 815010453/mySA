@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 import math
 
 import numpy as np
@@ -10,7 +11,7 @@ import datetime
 if __name__ == '__main__':
     '''time_s = datetime.datetime.now()
     myGraph = GeoGraph('TW')
-    myGraph.constructGraph_edge('edge/T_ROAD_webmerc.shp')
+    myGraph.constructGraph_edge('data/cd_road/cd_road_processed.shp')
     time_m = datetime.datetime.now()
     print('构建花费时间:', (time_m - time_s).total_seconds(), '秒')
     # my_dict = myGraph.reconstruct_edge_min_delta_angle(math.pi / 6)
@@ -19,10 +20,18 @@ if __name__ == '__main__':
     print('重建相邻关系花费时间:', (time_e - time_m).total_seconds(), '秒')
     print(len(my_dict.keys()))
     time_m = datetime.datetime.now()
-    myGraph.draw_geograph('out/sa.shp', my_dict)
+    myGraph.draw_geograph('out/cd_road/cd_sa.shp', my_dict)
     time_e = datetime.datetime.now()
     print('绘制花费时间:', (time_e - time_m).total_seconds(), '秒')'''
 
+    time_s = datetime.datetime.now()
+    myGraph = GeoGraph('CHN')
+    myGraph.constructGraph_polygon('data/shi_polygon/Export_Output.shp')
+    time_m = datetime.datetime.now()
+    print('构建花费时间:', (time_m - time_s).total_seconds(), '秒')
+
+
+    '''
     myGraph = GeoGraph('Test')
     vertices = []
     vertex = GeoVertex(1, {}, (0, 1))
@@ -87,7 +96,4 @@ if __name__ == '__main__':
         print(str(count) + ': ' + str(p))
         count += 1
     time_e = datetime.datetime.now()
-    print('查询花费时间:', (time_e - time_m).total_seconds(), '秒')
-    lst = [0, 0, 0, 0.25, 0.25, 0.5, 0.5, 0.75, 1]
-    lst = myGraph.adjust_list(lst)
-    print(lst)
+    print('查询花费时间:', (time_e - time_m).total_seconds(), '秒')'''
