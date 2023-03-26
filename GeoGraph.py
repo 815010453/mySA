@@ -9,6 +9,8 @@ from osgeo import osr
 import os
 import math
 import random
+from sklearn.cluster import KMeans
+import pyproj
 
 """
 GeoGraph Class
@@ -28,6 +30,7 @@ class GeoGraph:
     __vertexCoord: dict  # 点的坐标对应的点号
     __polygon_id: dict[int]  # 多边形号对应的多边形
     __vertex_polygon: dict  # 点对应的多边形
+    __proj: str
 
     def __init__(self, g_id: str = '') -> None:
         self.__vertices_id = {}
@@ -37,11 +40,15 @@ class GeoGraph:
         self.__vertexCoord = {}
         self.__polygon_id = {}
         self.__vertex_polygon = {}
+        self.__proj = ''
 
     # 通过边文件路径名以及图名构建该图
     def constructGraph_edge(self, edge_path) -> None:
         """所有的点构成一张图"""
         '''开始构建图'''
+        # 坐标系
+        with open(edge_path.replace(".shp", ".prj"), 'r') as f:
+            self.__proj = f.read()
         '''读取边的shapefile文件'''
         '''构建点与点之间的相邻关系以及构建边'''
         with shapefile.Reader(edge_path, encoding='utf-8') as edgeFile:
@@ -98,11 +105,11 @@ class GeoGraph:
     # 通过面文件路径名以及图面构建该图
 
     def constructGraph_polygon(self, polygon_path) -> None:
-        with shapefile.Reader(polygon_path, encoding='utf-8') as edgeFile:
+        with shapefile.Reader(polygon_path, encoding='utf-8') as polygonFile:
             # 读取属性
-            all_records = edgeFile.records()
+            all_records = polygonFile.records()
             key_list = []  # 字段名
-            for i in edgeFile.fields:
+            for i in polygonFile.fields:
                 key_list.append(i[0])
             print(key_list)
             # 不需要第0个字段名
@@ -110,7 +117,9 @@ class GeoGraph:
             count = 1
             count_edge = 1
             # 读取坐标
-            all_points = edgeFile.shapes()
+            all_points = polygonFile.shapes()
+            with open(polygon_path.replace(".shp", ".prj"), 'r') as f:
+                self.__proj = f.read()
             polygon_id = 0
             for item, shape in zip(all_records, all_points):
                 # 创建边
@@ -121,6 +130,7 @@ class GeoGraph:
                 preVertex = None
                 polygon_id += 1
                 vertices = []
+                parts = shape.parts
                 for point in shape.points:
                     # 如果节点已经在图中了，则去找它
                     if point in self.__vertexCoord.keys():
@@ -131,6 +141,7 @@ class GeoGraph:
                             continue
                         # 否则查找现在的节点
                         nowVertex = self.__vertices_id[self.__vertexCoord[point]]
+
                     # 否则节点不在图中
                     else:
                         # 如果前置节点不存在，则创建前置节点
@@ -152,11 +163,12 @@ class GeoGraph:
                         self.add_edge(nowEdge)
                         count_edge += 1
                     preVertex = nowVertex
-                geopolygon = GeoPolygon(polygon_id, vertices, temp_dict)
+                geopolygon = GeoPolygon(polygon_id, parts, vertices, temp_dict)
                 self.add_polygon(geopolygon)
-        for p_id, polygon in self.__polygon_id.items():
+
+        '''for p_id, polygon in self.__polygon_id.items():
             print(polygon.get_poly_att()['市'], [i.get_poly_att()['市'] for i in polygon.get_con_polygon()])
-        '''if self.check_graph_simple():
+        if self.check_graph_simple():
             print('Constructing graph succeed!')
             print('The count of vertices is ' + str(len(list(self.__vertices_id.keys()))))
             print('The count of edges is ' + str(len(list(self.__edges_id.keys()))))'''
@@ -706,7 +718,7 @@ class GeoGraph:
 
     '''路径绘制'''
 
-    def draw_geograph(self, out_path: str, roadDict: dict) -> None:
+    def draw_geograph_roads(self, out_path: str, roadDict: dict) -> None:
         """
         使用 pyshp 库画图。
 
@@ -747,13 +759,9 @@ class GeoGraph:
             w.line([road_coord])
             w.record(str(id), str(road_length), str(len(vertices)))
         w.close()
-        # 写投影信息
-        proj = osr.SpatialReference()
-        proj.ImportFromEPSG(4326)
-        wkt = proj.ExportToWkt()
-        # 写出prj文件
+        # 写坐标系
         with open(out_path.replace(".shp", ".prj"), 'w') as f:
-            f.write(wkt)
+            f.write(self.__proj)
 
         return None
 
@@ -805,3 +813,126 @@ class GeoGraph:
         for i in range(len(lst2)):
             lst2[i] /= total
         return lst2
+
+    '''
+    kmeans聚类
+    '''
+
+    def my_kmeans(self, option, k) -> dict:
+        dct = {}
+        data = []
+        for p_id, polygon in self.__polygon_id.items():
+            dct[p_id] = polygon.get_poly_att()
+            if dct[p_id][option] == 0:
+                continue
+            data.append(dct[p_id][option])
+        data = np.array(data)
+        data = data.reshape(-1, 1)
+        kmeans = KMeans(n_clusters=k)
+        kmeans.fit(data)
+        data_pred = kmeans.predict(data)
+        index = 0
+        for p_id, value in dct.items():
+            if dct[p_id][option] == 0:
+                value[option + '_kmeans_class'] = -1
+                continue
+            value[option + '_kmeans_class'] = data_pred[index]
+            polygon: GeoPolygon = self.__polygon_id[p_id]
+            polygon.set_att(value)
+            index += 1
+        '''for id, polygon in self.__polygon_id.items():
+            att = polygon.get_poly_att()
+            print(str(att['市']) + ': ' + str(att['R_densit_3_kmeans_class']))'''
+
+    '''
+    空间约束
+    '''
+
+    def spatial_constraints_cluster(self, option, k):
+        dct = {}
+        for id, polygon in self.__polygon_id.items():
+            att = polygon.get_poly_att()
+            cl = att[option + '_kmeans_class']
+            if cl not in dct.keys():
+                dct[cl] = [polygon]
+            else:
+                dct[cl].append(polygon)
+        for cl, polys in dct.items():
+            visited = {}
+            if cl < 0:
+                cl_now = cl - 0.001
+            else:
+                cl_now = cl + 0.001
+            for p in polys:
+                visited[p.get_id()] = False
+            for p in polys:
+                p_id = p.get_id()
+                if visited[p_id]:
+                    continue
+                else:
+                    stack = [p]
+                    while stack:
+                        t: GeoPolygon = stack.pop()
+                        att = t.get_poly_att()
+                        att[option + '_kmeans_sp_class'] = round(cl_now, 3)
+                        t.set_att(att)
+                        visited[t.get_id()] = True
+                        cons = t.get_con_polygon()
+                        for c in cons:
+                            if c.get_id() not in visited.keys():
+                                continue
+                            if not visited[c.get_id()]:
+                                stack.append(c)
+                    if cl < 0:
+                        cl_now -= 0.001
+                    else:
+                        cl_now += 0.001
+        '''for id, polygon in self.__polygon_id.items():
+            att = polygon.get_poly_att()
+            print(str(att['市']) + ': ' + str(att['R_densit_3_kmeans_sp_class']))'''
+
+    '''多边形绘制'''
+
+    def draw_geograph_polygons(self, out_path: str, option) -> None:
+        # gdal对应的proj.db在这个文件夹下
+        os.environ['PROJ_LIB'] = 'D:\\anaconda3\\Lib\\site-packages\\osgeo\\data\\proj'
+        # 字段
+        fields = ['id', '市', '市代码', option + '_class']
+        print(fields)
+        # 写字段
+        w = shapefile.Writer(out_path, shapeType=5, encoding='utf-8')
+        for i in fields:
+            if i == '市':
+                w.field(i, 'C')
+            elif i == '市代码' or i == 'id':
+                w.field(i, 'N', decimal=0)
+            else:
+                w.field(i, 'N', decimal=3, size=20)
+        id = 0
+        for p_id, polygon in self.__polygon_id.items():
+            att = polygon.get_poly_att()
+            vertices = polygon.get_vertices()
+            coord = []
+            id += 1
+            for v in vertices:
+                coord.append(v.get_coord())
+            parts = polygon.get_parts()
+            if len(parts) == 1:
+                coord = [coord]
+            else:
+                point_list = []
+                for i in range(len(parts)):
+                    if i == len(parts) - 1:
+                        # 最后一个部分的点序列是从当前部分的起始点到多边形末尾的点序列
+                        part_points = coord[parts[i]:]
+                    else:
+                        # 中间部分的点序列是从当前部分的起始点到下一个部分的起始点的点序列
+                        part_points = coord[parts[i]:parts[i + 1]]
+                    point_list.append(part_points)
+                coord = point_list
+            w.poly(coord)
+            w.record(str(id), str(att['市']), str(att['市代码']), str(att[option + '_kmeans_sp_class']))
+        # 写坐标系
+        with open(out_path.replace(".shp", ".prj"), 'w') as f:
+            f.write(self.__proj)
+        w.close()

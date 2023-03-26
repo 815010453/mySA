@@ -2,6 +2,7 @@
 import math
 
 import numpy as np
+from sklearn.cluster import KMeans
 
 from GeoVertex import GeoVertex
 from GeoEdge import GeoEdge
@@ -20,7 +21,7 @@ if __name__ == '__main__':
     print('重建相邻关系花费时间:', (time_e - time_m).total_seconds(), '秒')
     print(len(my_dict.keys()))
     time_m = datetime.datetime.now()
-    myGraph.draw_geograph('out/cd_road/cd_sa.shp', my_dict)
+    myGraph.draw_geograph_roads('out/cd_road/cd_sa.shp', my_dict)
     time_e = datetime.datetime.now()
     print('绘制花费时间:', (time_e - time_m).total_seconds(), '秒')'''
 
@@ -29,7 +30,9 @@ if __name__ == '__main__':
     myGraph.constructGraph_polygon('data/shi_polygon/Export_Output.shp')
     time_m = datetime.datetime.now()
     print('构建花费时间:', (time_m - time_s).total_seconds(), '秒')
-
+    myGraph.my_kmeans('R_densit_3', 2)
+    myGraph.spatial_constraints('R_densit_3')
+    myGraph.draw_geograph_polygons('out/shi_polygon/output.shp', 'R_densit_3')
 
     '''
     myGraph = GeoGraph('Test')

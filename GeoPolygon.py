@@ -18,12 +18,14 @@ class GeoPolygon:
     # 该面的属性 {'市': '北京市', 'pop': ..., ...}
     __polygonAttribute: dict
     __conGeoPoly: list
+    __parts: list
 
-    def __init__(self, p_id: int, vertices: list[GeoEdge], poly_att=None) -> None:
+    def __init__(self, p_id: int, parts, vertices: list[GeoEdge], poly_att=None) -> None:
         self.__polygonAttribute = poly_att
         self.__id = p_id
         self.__vertices = vertices
         self.__conGeoPoly = []
+        self.__parts = parts
 
     '''添加相邻的节点'''
 
@@ -55,14 +57,14 @@ class GeoPolygon:
     def get_con_polygon(self) -> list:
         return self.__conGeoPoly
 
+    def get_parts(self) -> list:
+        return self.__parts
+
     def set_id(self, p_id: int) -> None:
         self.__id = p_id
 
     def set_att(self, att: dict) -> None:
         self.__polygonAttribute = att
-
-    def set_edges(self, edges: list) -> None:
-        self.__edges = edges
 
     def __str__(self) -> str:
         return str(self.__id)
